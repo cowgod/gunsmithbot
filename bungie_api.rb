@@ -86,25 +86,30 @@ class BungieApi
     CLAN_BANNER:    4292445962,
   }.freeze
 
+  MEMBERSHIP_TYPES = {
+    None:          0,
+    TigerXbox:     1,
+    TigerPsn:      2,
+    TigerBlizzard: 4,
+    TigerDemon:    10,
+    BungieNext:    254,
+    All:           -1
+  }.freeze
+
 
   def initialize(api_key)
     @options = { headers: { 'X-API-Key' => api_key } }
   end
 
-  # def questions
-  #   self.class.get("/2.2/questions", @options)
-  # end
-  # 
-  # def users
-  #   self.class.get("/2.2/users", @options)
-  # end
 
-  def search_user(gamertag)
-    response = self.class.get("/Destiny2/SearchDestinyPlayer/-1/#{URI.escape(gamertag.to_s)}/", @options)
+  def search_user(requested_gamertag, requested_platform = nil)
+    # Transform the requested platform into a numeric ID
+    membership_type_id = BungieApi.get_membership_type_id(requested_platform) || -1
+
+    url      = "/Destiny2/SearchDestinyPlayer/#{URI.escape(membership_type_id.to_s)}/#{URI.escape(requested_gamertag.to_s)}/"
+    response = self.class.get(url, @options)
+
     response ? response.parsed_response['Response'][0] : nil
-
-    # response.parsed_response['Response'][0]['displayName']
-    # response.parsed_response['Response'][0]['membershipId']
   end
 
 
@@ -135,8 +140,9 @@ class BungieApi
 
 
   def active_char_with_equipment(membership_type, membership_id)
+    url      = "/Destiny2/#{URI.escape(membership_type.to_s)}/Profile/#{URI.escape(membership_id.to_s)}/"
     response = self.class.get(
-      "/Destiny2/#{URI.escape(membership_type.to_s)}/Profile/#{URI.escape(membership_id.to_s)}/",
+      url,
       @options.merge(
         query: {
           components: [COMPONENTS[:Characters], COMPONENTS[:CharacterEquipment]].join(',')
@@ -144,18 +150,22 @@ class BungieApi
       )
     )
 
-    return nil unless response.parsed_response['Response']['characters']
+    parsed_response = response.parsed_response['Response']
+    return nil unless parsed_response
 
     latest_time_played = 0
     active_char        = nil
 
-    response.parsed_response['Response']['characters']['data'].each_pair do |_, character|
-      if character && Time.parse(character['dateLastPlayed']) > latest_time_played
+    parsed_response.dig('characters').dig('data').each_pair do |_, character|
+      if character && Time.parse(character.dig('dateLastPlayed')) > latest_time_played
         active_char = character
       end
     end
 
-    active_char['items'] = response.parsed_response['Response']['characterEquipment']['data'][active_char['characterId']]['items']
+    return nil unless active_char
+
+    character_id         = active_char.dig('characterId')
+    active_char['items'] = parsed_response.dig('characterEquipment').dig('data').dig(character_id).dig('items')
 
     active_char
   end
@@ -187,30 +197,43 @@ class BungieApi
   # end
 
 
-  def self.get_bucket_id(bucket_name)
-    case bucket_name.strip.downcase
-      when 'primary', 'kinetic' then
-        ITEM_BUCKET_IDS[:KINETIC_WEAPON]
-      when 'special', 'secondary', 'energy' then
-        ITEM_BUCKET_IDS[:ENERGY_WEAPON]
-      when 'heavy', 'power' then
-        ITEM_BUCKET_IDS[:HEAVY_WEAPON]
-      when 'ghost' then
-        ITEM_BUCKET_IDS[:GHOST]
-      when 'head', 'helmet' then
-        ITEM_BUCKET_IDS[:HEAD]
-      when 'arm', 'arms', 'gloves', 'gauntlets' then
-        ITEM_BUCKET_IDS[:ARMS]
-      when 'chest' then
-        ITEM_BUCKET_IDS[:CHEST]
-      when 'leg', 'legs', 'boots', 'greaves' then
-        ITEM_BUCKET_IDS[:LEGS]
-      when 'class', 'mark', 'bond', 'cape', 'cloak' then
-        ITEM_BUCKET_IDS[:CLASS_ITEM]
+  ### Class Methods
+
+  def self.get_membership_type_id(membership_type)
+    case membership_type.to_s.strip.downcase
+      when 'playstation', 'ps4', 'ps3', 'ps'
+        MEMBERSHIP_TYPES[:TigerPsn]
+      when 'xbox', 'xb1', 'xb'
+        MEMBERSHIP_TYPES[:TigerXbox]
+      when 'battlenet', 'bnet', 'blizzard', 'blizard', 'pc'
+        MEMBERSHIP_TYPES[:TigerBlizzard]
       else
-        null
+        nil
     end
   end
 
-
+  def self.get_bucket_id(bucket_name)
+    case bucket_name.to_s.strip.downcase
+      when 'primary', 'kinetic'
+        ITEM_BUCKET_IDS[:KINETIC_WEAPON]
+      when 'special', 'secondary', 'energy'
+        ITEM_BUCKET_IDS[:ENERGY_WEAPON]
+      when 'heavy', 'power'
+        ITEM_BUCKET_IDS[:HEAVY_WEAPON]
+      when 'ghost'
+        ITEM_BUCKET_IDS[:GHOST]
+      when 'head', 'helmet'
+        ITEM_BUCKET_IDS[:HEAD]
+      when 'arm', 'arms', 'gloves', 'gauntlets'
+        ITEM_BUCKET_IDS[:ARMS]
+      when 'chest'
+        ITEM_BUCKET_IDS[:CHEST]
+      when 'leg', 'legs', 'boots', 'greaves'
+        ITEM_BUCKET_IDS[:LEGS]
+      when 'class', 'mark', 'bond', 'cape', 'cloak'
+        ITEM_BUCKET_IDS[:CLASS_ITEM]
+      else
+        nil
+    end
+  end
 end
