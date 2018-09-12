@@ -1,6 +1,14 @@
 require 'httparty'
 require 'uri'
 require 'time'
+require 'tempfile'
+require 'sqlite3'
+require 'zip'
+
+require_relative 'bungie_manifest'
+
+
+require 'pp'
 
 
 class BungieApi
@@ -8,68 +16,94 @@ class BungieApi
   base_uri 'https://www.bungie.net/Platform/'
 
 
-  COMPONENTS = {
+  COMPONENTS       = {
     None: 0,
+
     # Profiles is the most basic component, only relevant when calling GetProfile. This returns basic information about the profile, which is almost nothing: a list of characterIds, some information about the last time you logged in, and that most sobering statistic: how long you've played.
     Profiles: 100,
+
     # Only applicable for GetProfile, this will return information about receipts for refundable vendor items.
     VendorReceipts: 101,
+
     # Asking for this will get you the profile-level inventories, such as your Vault buckets (yeah, the Vault is really inventory buckets located on your Profile)
     ProfileInventories: 102,
+
     # This will get you a summary of items on your Profile that we consider to be "currencies", such as Glimmer. I mean, if there's Glimmer in Destiny 2. I didn't say there was Glimmer.
     ProfileCurrencies: 103,
+
     # This will get you any progression-related information that exists on a Profile-wide level, across all characters.
     ProfileProgression: 104,
+
     # This will get you summary info about each of the characters in the profile.
     Characters: 200,
+
     # This will get you information about any non-equipped items on the character or character(s) in question, if you're allowed to see it. You have to either be authenticated as that user, or that user must allow anonymous viewing of their non-equipped items in Bungie.Net settings to actually get results.
     CharacterInventories: 201,
+
     # This will get you information about the progression (faction, experience, etc... "levels") relevant to each character, if you are the currently authenticated user or the user has elected to allow anonymous viewing of its progression info.
     CharacterProgressions: 202,
+
     # This will get you just enough information to be able to render the character in 3D if you have written a 3D rendering library for Destiny Characters, or "borrowed" ours. It's okay, I won't tell anyone if you're using it. I'm no snitch. (actually, we don't care if you use it - go to town)
     CharacterRenderData: 203,
+
     # This will return info about activities that a user can see and gating on it, if you are the currently authenticated user or the user has elected to allow anonymous viewing of its progression info. Note that the data returned by this can be unfortunately problematic and relatively unreliable in some cases. We'll eventually work on making it more consistently reliable.
     CharacterActivities: 204,
+
     # This will return info about the equipped items on the character(s). Everyone can see this.
     CharacterEquipment: 205,
+
     # This will return basic info about instanced items - whether they can be equipped, their tracked status, and some info commonly needed in many places (current damage type, primary stat value, etc)
     ItemInstances: 300,
+
     # Items can have Objectives (DestinyObjectiveDefinition) bound to them. If they do, this will return info for items that have such bound objectives.
     ItemObjectives: 301,
+
     # Items can have perks (DestinyPerkDefinition). If they do, this will return info for what perks are active on items.
     ItemPerks: 302,
+
     # If you just want to render the weapon, this is just enough info to do that rendering.
     ItemRenderData: 303,
+
     # Items can have stats, like rate of fire. Asking for this component will return requested item's stats if they have stats.
     ItemStats: 304,
+
     # Items can have sockets, where plugs can be inserted. Asking for this component will return all info relevant to the sockets on items that have them.
     ItemSockets: 305,
+
     # Items can have talent grids, though that matters a lot less frequently than it used to. Asking for this component will return all relevant info about activated Nodes and Steps on this talent grid, like the good ol' days.
     ItemTalentGrids: 306,
+
     # Items that *aren't* instanced still have important information you need to know: how much of it you have, the itemHash so you can look up their DestinyInventoryItemDefinition, whether they're locked, etc... Both instanced and non-instanced items will have these properties. You will get this automatically with Inventory components - you only need to pass this when calling GetItem on a specific item.
     ItemCommonData: 307,
+
     # Items that are "Plugs" can be inserted into sockets. This returns statuses about those plugs and why they can/can't be inserted. I hear you giggling, there's nothing funny about inserting plugs. Get your head out of the gutter and pay attention!
     ItemPlugStates: 308,
+
     # When obtaining vendor information, this will return summary information about the Vendor or Vendors being returned.
     Vendors: 400,
+
     # When obtaining vendor information, this will return information about the categories of items provided by the Vendor.
     VendorCategories: 401,
+
     # When obtaining vendor information, this will return the information about items being sold by the Vendor.
     VendorSales: 402,
+
     # Asking for this component will return you the account's Kiosk statuses: that is, what items have been filled out/acquired. But only if you are the currently authenticated user or the user has elected to allow anonymous viewing of its progression info.
     Kiosks: 500,
+
     # A "shortcut" component that will give you all of the item hashes/quantities of items that the requested character can use to determine if an action (purchasing, socket insertion) has the required currency. (recall that all currencies are just items, and that some vendor purchases require items that you might not traditionally consider to be a "currency", like plugs/mods!)
     CurrencyLookups: 600,
+
     # Returns summary status information about all "Presentation Nodes". See DestinyPresentationNodeDefinition for more details, but the gist is that these are entities used by the game UI to bucket Collectibles and Records into a hierarchy of categories. You may ask for and use this data if you want to perform similar bucketing in your own UI: or you can skip it and roll your own.
     PresentationNodes: 700,
+
     # Returns summary status information about all "Collectibles". These are records of what items you've discovered while playing Destiny, and some other basic information. For detailed information, you will have to call a separate endpoint devoted to the purpose.
     Collectibles: 800,
+
     # Returns summary status information about all "Records" (also known in the game as "Triumphs". I know, it's confusing because there's also "Moments of Triumph" that will themselves be represented as "Triumphs.")
     Records: 900,
   }.freeze
-
-  # http://api.trialsofthenine.com/manifest/items/1518042134,1887808042,1891561814,2824453288,3609169817,3211001969,1245809813,1069887756,3773306894,4222882592,806017499,3635991036,1460578930,1409726984,3183180185
-  ITEM_BUCKET_IDS = {
+  ITEM_BUCKET_IDS  = {
     KINETIC_WEAPON: 1498876634,
     ENERGY_WEAPON:  2465295065,
     HEAVY_WEAPON:   953998645,
@@ -85,7 +119,6 @@ class BungieApi
     EMBLEM:         4274335291,
     CLAN_BANNER:    4292445962,
   }.freeze
-
   MEMBERSHIP_TYPES = {
     None:          0,
     TigerXbox:     1,
@@ -95,10 +128,24 @@ class BungieApi
     BungieNext:    254,
     All:           -1
   }.freeze
+  DAMAGE_TYPES     = {
+    None:    0,
+    Kinetic: 1,
+    Arc:     2,
+    Thermal: 3,
+    Void:    4,
+    Raid:    5,
+  }.freeze
+
+  # The value of the uiCategoryStyle for socketCategories that we want to
+  # display (this corresponds to 'WEAPON PERKS' and 'ARMOR PERKS')
+  SOCKET_CATEGORY_CATEGORY_STYLE = 2656457638
 
 
   def initialize(api_key)
+    puts 'Initializing Bungie API... Done.'
     @options = { headers: { 'X-API-Key' => api_key } }
+    initialize_manifest
   end
 
 
@@ -156,18 +203,109 @@ class BungieApi
     latest_time_played = 0
     active_char        = nil
 
-    parsed_response.dig('characters').dig('data').each_pair do |_, character|
+    parsed_response.dig('characters', 'data').each_pair do |_, character|
       if character && Time.parse(character.dig('dateLastPlayed')) > latest_time_played
-        active_char = character
+        active_char        = character
+        latest_time_played = Time.parse(character.dig('dateLastPlayed'))
       end
     end
 
     return nil unless active_char
 
     character_id         = active_char.dig('characterId')
-    active_char['items'] = parsed_response.dig('characterEquipment').dig('data').dig(character_id).dig('items')
+    active_char['items'] = parsed_response.dig('characterEquipment', 'data', character_id, 'items')
 
     active_char
+  end
+
+  def item_details(membership_type, membership_id, item_instance_id)
+    url      = "/Destiny2/#{URI.escape(membership_type.to_s)}/Profile/#{URI.escape(membership_id.to_s)}/Item/#{URI.escape(item_instance_id.to_s)}/"
+    response = self.class.get(
+      url,
+      @options.merge(
+        query: {
+          components: [
+                        COMPONENTS[:ItemInstances],
+                        COMPONENTS[:ItemPerks],
+                        COMPONENTS[:ItemStats],
+
+                        COMPONENTS[:ItemSockets],
+                        COMPONENTS[:ItemCommonData],
+                        COMPONENTS[:ItemPlugStates],
+                      ].join(',')
+        }
+      )
+    )
+
+    item_instance = response.parsed_response['Response']
+    return nil unless item_instance
+
+    item_hash = item_instance.dig('item', 'data', 'itemHash').to_s
+    return nil unless item_hash
+
+    item = @manifest.lookup_item(item_hash)
+
+    item_details = {
+      hash:             item_hash,
+      item_instance_id: item_instance.dig('item', 'data', 'itemInstanceId'),
+      damage_type:      (DAMAGE_TYPES.key(item_instance.dig('instance', 'data', 'damageType')) || 'Unknown').to_s,
+      power_level:      item_instance.dig('instance', 'data', 'primaryStat', 'value'),
+      name:             item.dig('displayProperties', 'name'),
+      description:      item.dig('displayProperties', 'description'),
+      icon:             item.dig('displayProperties', 'icon'),
+      has_icon:         item.dig('displayProperties', 'hasIcon'),
+      tier:             item.dig('inventory', 'tierTypeName'),
+      type:             item.dig('itemTypeDisplayName'),
+      type_and_tier:    item.dig('itemTypeAndTierDisplayName'),
+    }
+
+    item_details[:socket_columns] = []
+
+    item.dig('sockets', 'socketCategories').each do |category|
+      socket_category = @manifest.lookup_socket_category category.dig('socketCategoryHash')
+      next unless socket_category.dig('uiCategoryStyle').to_s == SOCKET_CATEGORY_CATEGORY_STYLE.to_s
+
+      category.dig('socketIndexes').each do |socket_index|
+        ### Manifest data:
+        # socket_entry = item.dig('sockets', 'socketEntries')[socket_index]
+
+        ### Item instance data:
+        socket_entry = item_instance.dig('sockets', 'data', 'sockets')[socket_index]
+        next unless socket_entry && socket_entry.dig('reusablePlugs')
+
+        socket_column = []
+
+        socket_entry.dig('reusablePlugs').each do |plug|
+          plug_item = @manifest.lookup_item(plug.dig('plugItemHash'))
+          next unless plug_item
+
+          socket = {
+            hash:        plug_item.dig('hash').to_s,
+            name:        plug_item.dig('displayProperties', 'name'),
+            description: plug_item.dig('displayProperties', 'description'),
+            icon:        plug_item.dig('displayProperties', 'icon'),
+            has_icon:    plug_item.dig('displayProperties', 'hasIcon'),
+            selected:    (plug_item.dig('hash').to_s == socket_entry.dig('plugHash').to_s)
+          }
+
+          socket_column.push socket
+        end
+
+        item_details[:socket_columns].push socket_column unless socket_column.empty?
+      end
+    end
+
+
+    # parsed_response['perks']['data']['perks'].each do |perk|
+    #   @manifest
+    # end
+
+    # parsed_response['perks']['data']['perks']
+    # parsed_response['stats']['data']['stats']
+    # parsed_response['sockets']['data']['sockets']
+
+
+    item_details
   end
 
 
@@ -235,5 +373,17 @@ class BungieApi
       else
         nil
     end
+  end
+
+
+  private
+
+  def initialize_manifest
+    response = self.class.get('/Destiny2/Manifest/', @options)
+
+    parsed_response = response.parsed_response['Response']
+    raise 'Invalid manifest URL received' unless parsed_response
+
+    @manifest = BungieManifest.new 'https://www.bungie.net' + parsed_response.dig('mobileWorldContentPaths', 'en')
   end
 end
