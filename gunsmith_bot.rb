@@ -61,6 +61,10 @@ HELP
     end
 
 
+    # Replace underscores with spaces for XBox GamerTags
+    requested_gamertag.tr!('_', ' ')
+
+
     bucket_id = BungieApi.get_bucket_id(requested_slot)
     unless bucket_id
       GunsmithBot.print_usage(client, data)
