@@ -7,6 +7,7 @@ require 'pp'
 class GunsmithBot < SlackRubyBot::Bot
   BOT_NAME     = 'Banshee-44'.freeze
   BOT_ICON_URL = 'http://binrock.net/banshee44.png'.freeze
+  BOT_USERNAME = (ENV['GUNSMITH_BOT_USERNAME'] || 'gunsmithbot').freeze
 
   # Used in formatting the attachment
   DAMAGE_COLOR = {
@@ -20,15 +21,15 @@ class GunsmithBot < SlackRubyBot::Bot
   command 'help' do |client, data, _|
     output = <<HELP
 To show off your weapon/armor, message the bot with your gamertag, network, and weapon/armor slot, separated by spaces. The bot will always look at the *most recently played character* on your account.
-The standard usage looks like this: ```@gunsmith MyGamerTag playstation kinetic```
+The standard usage looks like this: ```@#{BOT_USERNAME} MyGamerTag playstation kinetic```
 
-If you've set up your Slack profile so that your *title* ("What I Do") matches your in-game username, you can omit this: ```@gunsmith playstation helmet```
+If you've set up your Slack profile so that your *title* ("What I Do") matches your in-game username, you can omit this: ```@#{BOT_USERNAME} playstation helmet```
 
-If your gamertag only exists on one network, that can be omitted as well: ```@gunsmith heavy```
+If your gamertag only exists on one network, that can be omitted as well: ```@#{BOT_USERNAME} heavy```
 
 *Special note to Xbox Users:*
 If your gamertag has any spaces in it, these will need to be substituted with underscores (\"_\") in order for the bot to recognize the input properly.
-This is only required when inputting the gamertag manually however; spaces are fine in your Slack first name.\n\n
+This is only required when inputting the gamertag manually however; spaces are fine in your Slack title.\n\n
 _Keep that thing oiled, guardian._
 HELP
 
@@ -131,7 +132,7 @@ HELP
   end
 
   def self.print_usage(client, data)
-    output = "Usage: @gunsmith <gamertag> <platform> <slot>\nPlease use the 'help' command for more info."
+    output = "Usage: @#{BOT_USERNAME} <gamertag> <platform> <slot>\nPlease use the 'help' command for more info."
     client.say(text: output, channel: data.channel)
   end
 

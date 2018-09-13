@@ -14,28 +14,6 @@ class BungieManifest
   end
 
 
-#   def lookup_item(id)
-#     # CASE
-#     #   WHEN id < 0 THEN id + 4294967296
-#     #   ELSE id
-#     # END AS id,
-#     sql = <<SQL
-#       SELECT
-#         json
-#       FROM DestinyInventoryItemDefinition
-#       WHERE id =
-#         CASE
-#           WHEN ? > 2147483647 THEN ? - 4294967297
-#           ELSE ?
-#         END
-# SQL
-# 
-#     json = @manifest.get_first_value(sql, id, id, id)
-# 
-#     json ? JSON.parse(json) : nil
-#   end
-
-
   def lookup_item(hash)
     @manifest['DestinyInventoryItemDefinition'][hash.to_s]
   end
@@ -49,6 +27,7 @@ class BungieManifest
 
   def load_manifest(manifest_url)
     print 'Downloading Manifest... '
+
     manifest_zipfile = Tempfile.new('manifest_zip')
     manifest_zipfile.write HTTParty.get(manifest_url).body
 
@@ -59,9 +38,12 @@ class BungieManifest
       manifest_db.write entry.get_input_stream.read
     end
 
+    puts 'Done.'
+
+
     @manifest = {}
 
-    puts 'Done.'
+
     print 'Processing Manifest... '
 
     SQLite3::Database.open manifest_db.path do |db|

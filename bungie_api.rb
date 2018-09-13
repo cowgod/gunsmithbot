@@ -139,7 +139,7 @@ class BungieApi
 
   # The value of the uiCategoryStyle for socketCategories that we want to
   # display (this corresponds to 'WEAPON PERKS' and 'ARMOR PERKS')
-  SOCKET_CATEGORY_CATEGORY_STYLE = 2656457638
+  SOCKET_CATEGORY_CATEGORY_STYLE = '2656457638'.freeze
 
 
   def initialize(api_key)
@@ -147,7 +147,6 @@ class BungieApi
     @options = { headers: { 'X-API-Key' => api_key } }
     initialize_manifest
   end
-
 
   def search_user(requested_gamertag, requested_platform = nil)
     # Transform the requested platform into a numeric ID
@@ -158,33 +157,6 @@ class BungieApi
 
     response ? response.parsed_response['Response'][0] : nil
   end
-
-
-  # def active_char_id(user_info)
-  #   response = self.class.get(
-  #     "/Destiny2/#{URI.escape(user_info['membershipType'].to_s)}/Profile/#{URI.escape(user_info['membershipId'].to_s)}/",
-  #     @options.merge(
-  #       query: {
-  #         components: COMPONENTS[:Characters]
-  #       }
-  #     )
-  #   )
-  #
-  #   return nil unless response.parsed_response['Response']['characters']
-  #
-  #   active_hash        = nil
-  #   latest_time_played = 0
-  #
-  #   response.parsed_response['Response']['characters']['data'].each_pair do |hash, character|
-  #     # TODO - how to compare dateLastPlayed? format is 2018-08-27T03:05:32Z
-  #     if character && Time.parse(character['dateLastPlayed']) > latest_time_played
-  #       active_hash = hash
-  #     end
-  #   end
-  #
-  #   active_hash
-  # end
-
 
   def active_char_with_equipment(membership_type, membership_id)
     url      = "/Destiny2/#{URI.escape(membership_type.to_s)}/Profile/#{URI.escape(membership_id.to_s)}/"
@@ -308,34 +280,6 @@ class BungieApi
     item_details
   end
 
-
-  # def get_item_hash_for_char_and_bucket(char_hash, bucket_hash)
-  #   response = self.class.get(
-  #     "/Destiny2/#{URI.escape(user_info['membershipType'].to_s)}/Profile/#{URI.escape(user_info['membershipId'].to_s)}/",
-  #     @options.merge(
-  #       query: {
-  #         components: COMPONENTS[:CharacterEquipment]
-  #       }
-  #     )
-  #   )
-  #
-  #   return nil unless response.parsed_response['Response']['characters']
-  #
-  #   active_hash        = nil
-  #   latest_time_played = 0
-  #
-  #   response.parsed_response['Response']['characters']['data'].each_pair do |hash, character|
-  #     # TODO - how to compare dateLastPlayed? format is 2018-08-27T03:05:32Z
-  #     if character && Time.parse(character['dateLastPlayed']) > latest_time_played
-  #       active_hash = hash
-  #     end
-  #   end
-  #
-  #   active_hash
-  # end
-
-
-  ### Class Methods
 
   def self.get_membership_type_id(membership_type)
     case membership_type.to_s.strip.downcase
