@@ -15,11 +15,11 @@ class BungieManifest
 
 
   def lookup_item(hash)
-    @manifest['DestinyInventoryItemDefinition'][hash.to_s]
+    lookup_item_in_table('DestinyInventoryItemDefinition', hash)
   end
 
   def lookup_socket_category(hash)
-    @manifest['DestinySocketCategoryDefinition'][hash.to_s]
+    lookup_item_in_table('DestinySocketCategoryDefinition', hash)
   end
 
 
@@ -31,44 +31,41 @@ class BungieManifest
     manifest_zipfile = Tempfile.new('manifest_zip')
     manifest_zipfile.write HTTParty.get(manifest_url).body
 
-    manifest_db = Tempfile.new('manifest_db')
+    manifest_db_file = Tempfile.new('manifest_db')
 
     Zip::File.open_buffer(manifest_zipfile) do |zip_file|
       entry = zip_file.glob('world_sql_content_*').first
-      manifest_db.write entry.get_input_stream.read
+      manifest_db_file.write entry.get_input_stream.read
     end
 
     puts 'Done.'
 
 
-    @manifest = {}
-
-
-    print 'Processing Manifest... '
-
-    SQLite3::Database.open manifest_db.path do |db|
-      begin
-        TABLES.each do |table|
-          @manifest[table] = {}
-
-          db.execute "SELECT json FROM #{table}" do |row|
-            next unless row
-            item_detail = JSON.parse row[0]
-            next unless item_detail.dig('hash')
-            @manifest[table][item_detail.dig('hash').to_s] = item_detail
-          end
-        end
-      rescue SQLite3::Exception => e
-        puts 'Exception occurred'
-        puts e
-      ensure
-        db.close if db
-      end
-    end
-
+    print 'Opening DB connection to local manifest... '
+    @manifest = SQLite3::Database.open manifest_db_file.path
     puts 'Done.'
+  end
 
-    @manifest
+
+  def lookup_item_in_table(table_name, id)
+    # CASE
+    #   WHEN id < 0 THEN id + 4294967296
+    #   ELSE id
+    # END AS id,
+    sql = <<SQL
+      SELECT
+        json
+      FROM #{table_name}
+      WHERE id =
+        CASE
+          WHEN ? > 2147483646 THEN ? - 4294967296
+          ELSE ?
+        END
+SQL
+
+    json = @manifest.get_first_value(sql, id.to_i, id.to_i, id.to_i)
+
+    json ? JSON.parse(json) : nil
   end
 end
 
