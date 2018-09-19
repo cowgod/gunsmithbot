@@ -139,7 +139,17 @@ class BungieApi
 
   # The value of the uiCategoryStyle for socketCategories that we want to
   # display (this corresponds to 'WEAPON PERKS' and 'ARMOR PERKS')
-  SOCKET_CATEGORY_CATEGORY_STYLE = '2656457638'.freeze
+  SOCKET_CATEGORY_IDS = {
+    weapon_perks:      4241085061,
+    weapon_mods:       2685412949,
+    armor_perks:       2518356196,
+    armor_mods:        590099826,
+    ghost_shell_perks: 3301318876,
+    ghost_shell_mods:  3379164649,
+    vehicle_perks:     2278110604,
+    vehicle_mods_1:    4243480345,
+    vehicle_mods_2:    4265082475,
+  }.freeze
 
 
   def initialize(api_key)
@@ -155,7 +165,19 @@ class BungieApi
     url      = "/Destiny2/SearchDestinyPlayer/#{URI.escape(membership_type_id.to_s)}/#{URI.escape(requested_gamertag.to_s)}/"
     response = self.class.get(url, @options)
 
-    response ? response.parsed_response['Response'][0] : nil
+    user = response ? response.parsed_response['Response'][0] : nil
+
+    unless user
+      # Try again after replacing underscores with spaces, for XBox GamerTags
+      requested_gamertag.tr!('_', ' ')
+
+      url      = "/Destiny2/SearchDestinyPlayer/#{URI.escape(membership_type_id.to_s)}/#{URI.escape(requested_gamertag.to_s)}/"
+      response = self.class.get(url, @options)
+
+      user = response ? response.parsed_response['Response'][0] : nil
+    end
+
+    user
   end
 
   def active_char_with_equipment(membership_type, membership_id)
@@ -231,27 +253,37 @@ class BungieApi
       type_and_tier:    item.dig('itemTypeAndTierDisplayName'),
     }
 
-    item_details[:socket_columns] = []
+    item_details[:perk_sockets] = []
+    item_details[:mod_sockets]  = []
 
     item.dig('sockets', 'socketCategories').each do |category|
-      socket_category = @manifest.lookup_socket_category category.dig('socketCategoryHash')
-      next unless socket_category.dig('uiCategoryStyle').to_s == SOCKET_CATEGORY_CATEGORY_STYLE.to_s
+      case SOCKET_CATEGORY_IDS.key(category.dig('socketCategoryHash'))
+        when :weapon_perks, :armor_perks
+          socket_type = :perk_sockets
+        when :weapon_mods, :armor_mods
+          socket_type = :mod_sockets
+        else
+          socket_type = nil
+      end
+
+      next unless socket_type
+
 
       category.dig('socketIndexes').each do |socket_index|
         ### Manifest data:
         # socket_entry = item.dig('sockets', 'socketEntries')[socket_index]
 
         ### Item instance data:
-        socket_entry = item_instance.dig('sockets', 'data', 'sockets')[socket_index]
-        next unless socket_entry && socket_entry.dig('reusablePlugs')
+        socket_entry = item_instance&.dig('sockets', 'data', 'sockets')&.dig(socket_index)
+        next unless socket_entry && socket_entry&.dig('reusablePlugs')
 
-        socket_column = []
+        perk_socket = []
 
         socket_entry.dig('reusablePlugs').each do |plug|
           plug_item = @manifest.lookup_item(plug.dig('plugItemHash'))
           next unless plug_item
 
-          socket = {
+          perk = {
             hash:        plug_item.dig('hash').to_s,
             name:        plug_item.dig('displayProperties', 'name'),
             description: plug_item.dig('displayProperties', 'description'),
@@ -260,10 +292,10 @@ class BungieApi
             selected:    (plug_item.dig('hash').to_s == socket_entry.dig('plugHash').to_s)
           }
 
-          socket_column.push socket
+          perk_socket.push perk
         end
 
-        item_details[:socket_columns].push socket_column unless socket_column.empty?
+        item_details[socket_type].push perk_socket unless perk_socket.empty?
       end
     end
 

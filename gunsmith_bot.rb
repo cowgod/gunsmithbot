@@ -57,42 +57,38 @@ HELP
         requested_platform = args[1]
         requested_slot     = args[2]
       else
-        GunsmithBot.print_usage(client, data)
+        GunsmithBot.print_usage(client, data, 'Wrong number of arguments.')
         break
     end
 
 
-    # Replace underscores with spaces for XBox GamerTags
-    requested_gamertag.tr!('_', ' ')
-
-
     bucket_id = BungieApi.get_bucket_id(requested_slot)
     unless bucket_id
-      GunsmithBot.print_usage(client, data)
+      GunsmithBot.print_usage(client, data, "Couldn't find the requested slot.")
       break
     end
 
     user_info = $bungie_api.search_user(requested_gamertag, requested_platform)
     unless user_info
-      GunsmithBot.print_usage(client, data)
+      GunsmithBot.print_usage(client, data, "Couldn't find the requested user.")
       break
     end
 
     character = $bungie_api.active_char_with_equipment(user_info['membershipType'], user_info['membershipId'])
     unless character
-      GunsmithBot.print_usage(client, data)
+      GunsmithBot.print_usage(client, data, "Couldn't find the most recently used character for the requested user.")
       break
     end
 
     requested_item = character.dig('items').find { |item| item.dig('bucketHash') == bucket_id }
     unless requested_item
-      GunsmithBot.print_usage(client, data)
+      GunsmithBot.print_usage(client, data, "Couldn't find the requested item or armor piece.")
       break
     end
 
     item = $bungie_api.item_details(user_info['membershipType'], user_info['membershipId'], requested_item['itemInstanceId'])
     unless item
-      GunsmithBot.print_usage(client, data)
+      GunsmithBot.print_usage(client, data, "Couldn't load info for the requested item or armor piece.")
       break
     end
 
@@ -101,9 +97,9 @@ HELP
     icon_url            = item[:has_icon] ? "https://www.bungie.net/#{URI.encode(item[:icon])}" : nil
 
     perk_fields = []
-    item[:socket_columns].each do |socket_column|
+    item[:perk_sockets].each do |perk_socket|
       field = {
-        value: socket_column.map { |socket| socket[:selected] ? "*#{socket[:name]}*" : socket[:name] }.join(' | '),
+        value: perk_socket.map { |perk| perk[:selected] ? "*#{perk[:name]}*" : perk[:name] }.join(' | '),
         short: false
       }
 
@@ -131,8 +127,8 @@ HELP
     )
   end
 
-  def self.print_usage(client, data)
-    output = "Usage: @#{BOT_USERNAME} <gamertag> <platform> <slot>\nPlease use the 'help' command for more info."
+  def self.print_usage(client, data, additional_message = nil)
+    output = "#{additional_message}\nUsage: @#{BOT_USERNAME} <gamertag> <platform> <slot>\nPlease use the 'help' command for more info.".strip
     client.say(text: output, channel: data.channel)
   end
 
