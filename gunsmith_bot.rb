@@ -96,15 +96,45 @@ HELP
     destiny_tracker_url = "https://db.destinytracker.com/d2/en/items/#{URI.encode(item[:hash])}"
     icon_url            = item[:has_icon] ? "https://www.bungie.net/#{URI.encode(item[:icon])}" : nil
 
-    perk_fields = []
-    item[:perk_sockets].each do |perk_socket|
-      field = {
-        value: perk_socket.map { |perk| perk[:selected] ? "*#{perk[:name]}*" : perk[:name] }.join(' | '),
-        short: false
-      }
+    attachment_fields = []
 
-      perk_fields.push field
-    end
+    field_text = item[:perk_sockets]
+      .map do |perk_socket|
+        perk_socket.map do |perk|
+          perk[:selected] ? "*#{perk[:name]}*" : perk[:name]
+        end
+          .join(' | ')
+      end
+      .map { |line| "- #{line}" }
+      .join("\n")
+
+    attachment_fields.push({
+                             title: 'Perks',
+                             value: field_text,
+                             short: false
+                           })
+
+    # if item[:masterwork] || item[:mod]
+      attachment_fields.push({
+                               value: '----------------------------',
+                               short: false
+                             })
+
+
+      attachment_fields.push({
+                               title: 'Masterwork',
+                               value: item[:masterwork] ? "#{item[:masterwork][:affected_stat]} - #{item[:masterwork][:value]}" : 'n/a',
+                               short: true
+                             })
+
+      attachment_fields.push({
+                               title: 'Mod',
+                               ### TODO -- get rid of description?
+                               value: item[:mod] ? item[:mod][:name].to_s : 'n/a',
+                               short: true
+                             })
+    # end
+
 
     client.web_client.chat_postMessage(
       channel:     data.channel,
@@ -121,7 +151,7 @@ HELP
                        footer:      BOT_NAME,
                        mrkdwn_in:   ['fields'],
                        ts:          Time.now.to_i,
-                       fields:      perk_fields
+                       fields:      attachment_fields
                      }
                    ].to_json
     )

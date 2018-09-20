@@ -254,48 +254,77 @@ class BungieApi
     }
 
     item_details[:perk_sockets] = []
-    item_details[:mod_sockets]  = []
 
     item.dig('sockets', 'socketCategories').each do |category|
-      case SOCKET_CATEGORY_IDS.key(category.dig('socketCategoryHash'))
-        when :weapon_perks, :armor_perks
-          socket_type = :perk_sockets
-        when :weapon_mods, :armor_mods
-          socket_type = :mod_sockets
-        else
-          socket_type = nil
-      end
-
-      next unless socket_type
-
-
       category.dig('socketIndexes').each do |socket_index|
         ### Manifest data:
         # socket_entry = item.dig('sockets', 'socketEntries')[socket_index]
 
         ### Item instance data:
         socket_entry = item_instance&.dig('sockets', 'data', 'sockets')&.dig(socket_index)
-        next unless socket_entry && socket_entry&.dig('reusablePlugs')
+        next unless socket_entry
 
-        perk_socket = []
+        case SOCKET_CATEGORY_IDS.key(category.dig('socketCategoryHash'))
+          when :weapon_perks, :armor_perks
 
-        socket_entry.dig('reusablePlugs').each do |plug|
-          plug_item = @manifest.lookup_item(plug.dig('plugItemHash'))
-          next unless plug_item
+            next unless socket_entry&.dig('reusablePlugs')
 
-          perk = {
-            hash:        plug_item.dig('hash').to_s,
-            name:        plug_item.dig('displayProperties', 'name'),
-            description: plug_item.dig('displayProperties', 'description'),
-            icon:        plug_item.dig('displayProperties', 'icon'),
-            has_icon:    plug_item.dig('displayProperties', 'hasIcon'),
-            selected:    (plug_item.dig('hash').to_s == socket_entry.dig('plugHash').to_s)
-          }
+            perk_socket = []
 
-          perk_socket.push perk
+            socket_entry&.dig('reusablePlugs')&.each do |plug|
+              plug_item = @manifest.lookup_item(plug&.dig('plugItemHash'))
+              next unless plug_item
+
+              perk = {
+                hash:        plug_item.dig('hash').to_s,
+                name:        plug_item.dig('displayProperties', 'name'),
+                description: plug_item.dig('displayProperties', 'description'),
+                icon:        plug_item.dig('displayProperties', 'icon'),
+                has_icon:    plug_item.dig('displayProperties', 'hasIcon'),
+                selected:    (plug_item.dig('hash').to_s == socket_entry.dig('plugHash').to_s)
+              }
+
+              perk_socket.push perk
+            end
+
+            item_details[:perk_sockets].push perk_socket unless perk_socket.empty?
+
+
+          when :weapon_mods, :armor_mods
+
+            plug_item = @manifest.lookup_item(socket_entry&.dig('plugHash'))
+            next unless plug_item && plug_item&.dig('plug')
+
+            case plug_item&.dig('plug', 'plugCategoryIdentifier')
+              #v400.weapon.mod_empty
+              when 'v400.weapon.mod_guns', 'enhancements.universal'
+                next if plug_item&.dig('displayProperties', 'name') == 'Empty Mod Socket'
+                # next unless plug_item&.dig('investmentStats')&.first
+
+                item_details[:mod] = {
+                  hash:        plug_item.dig('hash').to_s,
+                  name:        plug_item.dig('displayProperties', 'name'),
+                  description: plug_item.dig('displayProperties', 'description'),
+                  icon:        plug_item.dig('displayProperties', 'icon'),
+                  has_icon:    plug_item.dig('displayProperties', 'hasIcon')
+                }
+
+              when /v400\.plugs\.(weapons|armor)\.masterworks\./
+                affected_stat = plug_item.dig('investmentStats')&.first
+                stat_details  = @manifest.lookup_stat(affected_stat&.dig('statTypeHash'))
+
+                item_details[:masterwork] = {
+                  hash:          plug_item.dig('hash').to_s,
+                  name:          plug_item.dig('displayProperties', 'name'),
+                  description:   plug_item.dig('displayProperties', 'description'),
+                  icon:          plug_item.dig('displayProperties', 'icon'),
+                  has_icon:      plug_item.dig('displayProperties', 'hasIcon'),
+                  affected_stat: stat_details&.dig('displayProperties', 'name'),
+                  value:         affected_stat&.dig('value')
+                }
+
+            end
         end
-
-        item_details[socket_type].push perk_socket unless perk_socket.empty?
       end
     end
 
