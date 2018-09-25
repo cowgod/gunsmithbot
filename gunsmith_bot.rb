@@ -1,5 +1,6 @@
 require 'slack-ruby-bot'
 require_relative 'bungie_api'
+require_relative 'trials_report_api'
 
 require 'pp'
 
@@ -69,6 +70,19 @@ HELP
     end
 
     user_info = $bungie_api.search_user(requested_gamertag, requested_platform)
+
+    unless user_info
+      search_results = TrialsReportApi.search_user(requested_gamertag, requested_platform)
+
+      unless search_results&.first
+        GunsmithBot.print_usage(client, data, "Couldn't find the requested user.")
+        break
+      end
+
+      user_info            = $bungie_api.search_user(search_results&.first&.dig('displayName'), requested_platform)
+      gamertag_suggestions = search_results.map { |result| result&.dig('displayName') }
+    end
+
     unless user_info
       GunsmithBot.print_usage(client, data, "Couldn't find the requested user.")
       break
@@ -100,11 +114,11 @@ HELP
 
     field_text = item[:perk_sockets]
       .map do |perk_socket|
-        perk_socket.map do |perk|
-          perk[:selected] ? "*#{perk[:name]}*" : perk[:name]
-        end
-          .join(' | ')
+      perk_socket.map do |perk|
+        perk[:selected] ? "*#{perk[:name]}*" : perk[:name]
       end
+        .join(' | ')
+    end
       .map { |line| "- #{line}" }
       .join("\n")
 
@@ -114,27 +128,43 @@ HELP
                              short: false
                            })
 
-    # if item[:masterwork] || item[:mod]
+    attachment_fields.push({
+                             value: '----------------------------',
+                             short: false
+                           })
+
+
+    attachment_fields.push({
+                             title: 'Masterwork',
+                             value: item[:masterwork] ? "#{item[:masterwork][:affected_stat]} - #{item[:masterwork][:value]}" : 'n/a',
+                             short: true
+                           })
+
+    attachment_fields.push({
+                             title: 'Mod',
+                             ### TODO -- get rid of description?
+                             value: item[:mod] ? item[:mod][:name].to_s : 'n/a',
+                             short: true
+                           })
+
+    if gamertag_suggestions&.length
+      gamertag_suggestions_string = gamertag_suggestions
+        .take(5)
+        .map { |gamertag| "`#{gamertag}`" }
+        .each_with_index
+        .map { |gamertag, index| index == 0 ? "{#{gamertag}}" : gamertag }
+        .join(', ')
+
       attachment_fields.push({
                                value: '----------------------------',
                                short: false
                              })
 
-
       attachment_fields.push({
-                               title: 'Masterwork',
-                               value: item[:masterwork] ? "#{item[:masterwork][:affected_stat]} - #{item[:masterwork][:value]}" : 'n/a',
-                               short: true
+                               value: "Suggestions: #{gamertag_suggestions_string}",
+                               short: false
                              })
-
-      attachment_fields.push({
-                               title: 'Mod',
-                               ### TODO -- get rid of description?
-                               value: item[:mod] ? item[:mod][:name].to_s : 'n/a',
-                               short: true
-                             })
-    # end
-
+    end
 
     client.web_client.chat_postMessage(
       channel:     data.channel,
