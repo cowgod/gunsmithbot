@@ -69,6 +69,10 @@ HELP
       break
     end
 
+    final_slot = BungieApi.get_bucket_code(bucket_id)
+
+    gamertag_suggestions = []
+
     user_info = $bungie_api.search_user(requested_gamertag, requested_platform)
 
     unless user_info
@@ -87,6 +91,9 @@ HELP
       GunsmithBot.print_usage(client, data, "Couldn't find the requested user.")
       break
     end
+
+    final_gamertag = user_info&.dig('displayName')
+    final_platform = BungieApi.get_platform_code(user_info&.dig('membershipType'))
 
     character = $bungie_api.active_char_with_equipment(user_info['membershipType'], user_info['membershipId'])
     unless character
@@ -107,11 +114,33 @@ HELP
     end
 
 
+    # Prepare output
     destiny_tracker_url = "https://db.destinytracker.com/d2/en/items/#{URI.encode(item[:hash])}"
     icon_url            = item[:has_icon] ? "https://www.bungie.net/#{URI.encode(item[:icon])}" : nil
 
+
+    message_text = ''
+    message_text += "<@#{data&.user}>: " unless data&.user&.blank?
+    message_text += "`#{final_gamertag} #{final_platform} #{final_slot}`\n"
+
+    unless gamertag_suggestions&.blank?
+      message_text += 'Gamertag Suggestions: '
+
+      message_text += gamertag_suggestions
+        .take(5)
+        .map { |gamertag| "`#{gamertag}`" }
+        .join(', ')
+    end
+
+    message_text.strip!
+
+
+    attachment_text     = "#{item[:type_and_tier]} - #{item[:power_level]} PL\n#{item[:description]}"
+    attachment_fallback = "#{item[:name]} - #{item[:type_and_tier]} - #{item[:power_level]} PL - #{item[:description]}"
+
     attachment_fields = []
 
+    # Perks
     field_text = item[:perk_sockets]
       .map do |perk_socket|
       perk_socket.map do |perk|
@@ -122,17 +151,25 @@ HELP
       .map { |line| "- #{line}" }
       .join("\n")
 
-    attachment_fields.push({
-                             title: 'Perks',
-                             value: field_text,
-                             short: false
-                           })
+    unless field_text.blank?
+      attachment_fields.push({
+                               value: '----------------------------',
+                               short: false
+                             })
 
+      attachment_fields.push({
+                               title: 'Perks',
+                               value: field_text,
+                               short: false
+                             })
+    end
+
+
+    # Masterwork / Mod
     attachment_fields.push({
                              value: '----------------------------',
                              short: false
                            })
-
 
     attachment_fields.push({
                              title: 'Masterwork',
@@ -147,48 +184,57 @@ HELP
                              short: true
                            })
 
-    if gamertag_suggestions&.length
-      gamertag_suggestions_string = gamertag_suggestions
-        .take(5)
-        .map { |gamertag| "`#{gamertag}`" }
-        .each_with_index
-        .map { |gamertag, index| index == 0 ? "{#{gamertag}}" : gamertag }
-        .join(', ')
 
-      attachment_fields.push({
-                               value: '----------------------------',
-                               short: false
-                             })
+    # Stats
+    stat_abbreviations = {
+      'Rounds Per Minute' => 'RPM',
+      'Reload Speed'      => 'Reload',
+      # 'Magazine' => 'Mag'
+    }
 
-      attachment_fields.push({
-                               value: "Suggestions: #{gamertag_suggestions_string}",
-                               short: false
-                             })
-    end
+    attachment_footer = item[:stats]
+      .each { |stat| stat[:name].to_s.gsub!(/^(#{stat_abbreviations.keys.join('|')})$/, stat_abbreviations) }
+      .map { |stat| "#{stat[:name]}: #{stat[:value]}" }
+      .join(', ')
+
+    attachment_footer = 'No stats, but it sure looks pretty' if attachment_footer.blank?
+
 
     client.web_client.chat_postMessage(
       channel:     data.channel,
       as_user:     true,
+      text:        message_text,
       attachments: [
                      {
                        color:       get_hex_color_for_damage_type(item[:damage_type]),
                        title:       item[:name],
                        title_link:  destiny_tracker_url,
                        thumb_url:   icon_url,
-                       text:        "#{item[:type_and_tier]} - #{item[:power_level]} PL\n#{item[:description]}\n----------------------------",
-                       fallback:    "#{item[:name]} - #{item[:type_and_tier]} - #{item[:power_level]} PL - #{item[:description]}",
+                       text:        attachment_text,
+                       fallback:    attachment_fallback,
+                       fields:      attachment_fields,
                        footer_icon: BOT_ICON_URL,
-                       footer:      BOT_NAME,
-                       mrkdwn_in:   ['fields'],
-                       ts:          Time.now.to_i,
-                       fields:      attachment_fields
+                       # footer:      BOT_NAME,
+                       footer: attachment_footer,
+                       # ts:          Time.now.to_i,
+                       mrkdwn_in: ['fields']
                      }
                    ].to_json
     )
   end
 
   def self.print_usage(client, data, additional_message = nil)
-    output = "#{additional_message}\nUsage: @#{BOT_USERNAME} <gamertag> <platform> <slot>\nPlease use the 'help' command for more info.".strip
+    output = ''
+
+    output += "<@#{data&.user}>: " unless data&.user&.blank?
+    output += "#{additional_message}" unless additional_message&.blank?
+    output += "\n"
+
+    output += "Usage: @#{BOT_USERNAME} <gamertag> <platform> <slot>\n"
+    output += "Please use the 'help' command for more info."
+
+    output.strip!
+
     client.say(text: output, channel: data.channel)
   end
 

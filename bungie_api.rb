@@ -113,11 +113,12 @@ class BungieApi
     CHEST:          14239492,
     LEGS:           20886954,
     CLASS_ITEM:     1585787867,
-
     SHIP:           284967655,
     SPARROW:        2025709351,
     EMBLEM:         4274335291,
+
     CLAN_BANNER:    4292445962,
+    SUBCLASS:       3284755031,
   }.freeze
   MEMBERSHIP_TYPES = {
     None:          0,
@@ -165,7 +166,7 @@ class BungieApi
     url      = "/Destiny2/SearchDestinyPlayer/#{URI.escape(membership_type_id.to_s)}/#{URI.escape(requested_gamertag.to_s)}/"
     response = self.class.get(url, @options)
 
-    user = response ? response.parsed_response['Response'][0] : nil
+    user = response ? response&.parsed_response&.dig('Response', 0) : nil
 
     unless user
       # Try again after replacing underscores with spaces, for XBox GamerTags
@@ -255,8 +256,8 @@ class BungieApi
 
     item_details[:perk_sockets] = []
 
-    item.dig('sockets', 'socketCategories').each do |category|
-      category.dig('socketIndexes').each do |socket_index|
+    item&.dig('sockets', 'socketCategories')&.each do |category|
+      category&.dig('socketIndexes')&.each do |socket_index|
         ### Manifest data:
         # socket_entry = item.dig('sockets', 'socketEntries')[socket_index]
 
@@ -329,13 +330,27 @@ class BungieApi
     end
 
 
-    # parsed_response['perks']['data']['perks'].each do |perk|
-    #   @manifest
-    # end
+    item_details[:stats] = []
+
+    item_instance&.dig('stats', 'data', 'stats')&.each_value do |stat|
+      next unless stat&.dig('statHash')
+
+      stat_details = @manifest.lookup_stat(stat&.dig('statHash'))
+
+      next unless stat_details
+
+      item_details[:stats].push(
+        hash:          stat&.dig('statHash').to_s,
+        name:          stat_details.dig('displayProperties', 'name'),
+        description:   stat_details.dig('displayProperties', 'description'),
+        icon:          stat_details.dig('displayProperties', 'icon'),
+        has_icon:      stat_details.dig('displayProperties', 'hasIcon'),
+        value:         stat&.dig('value')
+      )
+    end
+
 
     # parsed_response['perks']['data']['perks']
-    # parsed_response['stats']['data']['stats']
-    # parsed_response['sockets']['data']['sockets']
 
 
     item_details
@@ -355,6 +370,19 @@ class BungieApi
     end
   end
 
+  def self.get_platform_code(membership_type_id)
+    case membership_type_id.to_i
+      when MEMBERSHIP_TYPES[:TigerPsn]
+        'playstation'
+      when MEMBERSHIP_TYPES[:TigerXbox]
+        'xbox'
+      when MEMBERSHIP_TYPES[:TigerBlizzard]
+        'battlenet'
+      else
+        nil
+    end
+  end
+
   def self.get_bucket_id(bucket_name)
     case bucket_name.to_s.strip.downcase
       when 'primary', 'kinetic'
@@ -365,16 +393,53 @@ class BungieApi
         ITEM_BUCKET_IDS[:HEAVY_WEAPON]
       when 'ghost'
         ITEM_BUCKET_IDS[:GHOST]
-      when 'head', 'helmet'
+      when 'head', 'helmet', 'helm'
         ITEM_BUCKET_IDS[:HEAD]
-      when 'arm', 'arms', 'gloves', 'gauntlets'
+      when 'arm', 'arms', 'gloves', 'gauntlets', 'hands'
         ITEM_BUCKET_IDS[:ARMS]
       when 'chest'
         ITEM_BUCKET_IDS[:CHEST]
-      when 'leg', 'legs', 'boots', 'greaves'
+      when 'leg', 'legs', 'boots', 'greaves', 'pants'
         ITEM_BUCKET_IDS[:LEGS]
-      when 'class', 'mark', 'bond', 'cape', 'cloak'
+      when 'class', 'mark', 'bond', 'cape', 'cloak', 'towel'
         ITEM_BUCKET_IDS[:CLASS_ITEM]
+      when 'ship'
+        ITEM_BUCKET_IDS[:SHIP]
+      when 'sparrow'
+        ITEM_BUCKET_IDS[:SPARROW]
+      when 'emblem'
+        ITEM_BUCKET_IDS[:EMBLEM]
+      else
+        nil
+    end
+  end
+
+  def self.get_bucket_code(bucket_id)
+    case bucket_id.to_i
+      when ITEM_BUCKET_IDS[:KINETIC_WEAPON]
+        'kinetic'
+      when ITEM_BUCKET_IDS[:ENERGY_WEAPON]
+        'energy'
+      when ITEM_BUCKET_IDS[:HEAVY_WEAPON]
+        'power'
+      when ITEM_BUCKET_IDS[:GHOST]
+        'ghost'
+      when ITEM_BUCKET_IDS[:HEAD]
+        'helmet'
+      when ITEM_BUCKET_IDS[:ARMS]
+        'gloves'
+      when ITEM_BUCKET_IDS[:CHEST]
+        'chest'
+      when ITEM_BUCKET_IDS[:LEGS]
+        'boots'
+      when ITEM_BUCKET_IDS[:CLASS_ITEM]
+        'class'
+      when ITEM_BUCKET_IDS[:SHIP]
+        'ship'
+      when ITEM_BUCKET_IDS[:SPARROW]
+        'sparrow'
+      when ITEM_BUCKET_IDS[:EMBLEM]
+        'emblem'
       else
         nil
     end
