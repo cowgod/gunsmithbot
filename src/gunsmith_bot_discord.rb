@@ -127,7 +127,7 @@ HELP
       field_text = results[:item][:perk_sockets]
         .map do |perk_socket|
         perk_socket.map do |perk|
-          perk[:selected] ? "*#{perk[:name]}*" : perk[:name]
+          perk[:selected] ? "**#{perk[:name]}**" : perk[:name]
         end
           .join(' | ')
       end
