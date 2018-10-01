@@ -1,0 +1,22 @@
+[Unit]
+Description=GunsmithBot - <SERVER_NAME>
+After=network-online.target
+
+[Service]
+Type=simple
+User=<XXXXXXXXXXXXXXXXXXXXX>
+Group=<XXXXXXXXXXXXXXXXXXXXX>
+UMask=002
+
+Environment=SLACK_API_TOKEN=<XXXXXXXXXXXXXXXXXXXXX>
+Environment=BUNGIE_API_TOKEN=<XXXXXXXXXXXXXXXXXXXXX>
+Environment=GUNSMITH_BOT_USERNAME=gunsmith
+
+ExecStart=/usr/bin/ruby /usr/local/gunsmithbot/src/gunsmith_bot_slack.rb
+Restart=always
+
+# Configures the time to wait before service is stopped forcefully.
+TimeoutStopSec=300
+
+[Install]
+WantedBy=multi-user.target
