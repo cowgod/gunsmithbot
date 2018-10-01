@@ -152,6 +152,15 @@ class BungieApi
     vehicle_mods_2:    4265082475,
   }.freeze
 
+  # Used in formatting the attachment
+  DAMAGE_COLOR = {
+    kinetic: '#d9d9d9',
+    arc:     '#80b3ff',
+    solar:   '#e68a00',
+    void:    '#400080'
+  }.freeze
+
+
 
   def initialize(api_key)
     puts 'Initializing Bungie API... Done.'
@@ -443,6 +452,12 @@ class BungieApi
       else
         nil
     end
+  end
+
+
+  def self.get_hex_color_for_damage_type(damage_type)
+    damage_type_key = damage_type.downcase.to_sym
+    DAMAGE_COLOR[damage_type_key] || DAMAGE_COLOR[:kinetic]
   end
 
 
