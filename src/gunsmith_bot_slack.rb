@@ -105,11 +105,6 @@ HELP
 
     unless field_text.blank?
       attachment_fields.push({
-                               value: '----------------------------',
-                               short: false
-                             })
-
-      attachment_fields.push({
                                title: 'Perks',
                                value: field_text,
                                short: false
@@ -118,11 +113,6 @@ HELP
 
 
     # Masterwork / Mod
-    attachment_fields.push({
-                             value: '----------------------------',
-                             short: false
-                           })
-
     attachment_fields.push({
                              title: 'Masterwork',
                              value: results[:item][:masterwork] ? "#{results[:item][:masterwork][:affected_stat]} - #{results[:item][:masterwork][:value]}" : 'n/a',
