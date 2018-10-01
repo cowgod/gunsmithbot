@@ -1,11 +1,14 @@
 require 'slack-ruby-bot'
 require_relative 'gunsmith_bot'
+require_relative 'query_error'
+
+require_relative '../lib/monkey_patches'
 
 
 class GunsmithBotSlack < SlackRubyBot::Bot
   BOT_NAME     = 'Banshee-44'.freeze
   BOT_ICON_URL = 'http://binrock.net/banshee44.png'.freeze
-  BOT_USERNAME = (ENV['GUNSMITH_BOT_USERNAME'] || 'gunsmithbot').freeze
+  BOT_USERNAME = (ENV['GUNSMITH_BOT_USERNAME'] || 'gunsmithbot')
 
 
   command 'help' do |client, data, _|
@@ -55,7 +58,7 @@ HELP
 
 
       results = $gunsmith_bot.query(requested_gamertag, requested_platform, requested_slot)
-    rescue ArgumentError => message
+    rescue QueryError => message
       GunsmithBotSlack.print_usage(client, data, message)
     end
 
@@ -83,6 +86,7 @@ HELP
     message_text.strip!
 
 
+    attachment_title    =  results[:item][:name]
     attachment_text     = "#{results[:item][:type_and_tier]} - #{results[:item][:power_level]} PL\n#{results[:item][:description]}"
     attachment_fallback = "#{results[:item][:name]} - #{results[:item][:type_and_tier]} - #{results[:item][:power_level]} PL - #{results[:item][:description]}"
 
@@ -155,7 +159,7 @@ HELP
       attachments: [
                      {
                        color:       BungieApi.get_hex_color_for_damage_type(results[:item][:damage_type]),
-                       title:       results[:item][:name],
+                       title:       attachment_title,
                        title_link:  destiny_tracker_url,
                        thumb_url:   icon_url,
                        text:        attachment_text,

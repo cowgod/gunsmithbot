@@ -204,7 +204,7 @@ class BungieApi
     parsed_response = response.parsed_response['Response']
     return nil unless parsed_response
 
-    latest_time_played = 0
+    latest_time_played = Time.new(1980, 1, 1)
     active_char        = nil
 
     parsed_response.dig('characters', 'data').each_pair do |_, character|
