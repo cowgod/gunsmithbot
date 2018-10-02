@@ -1,5 +1,4 @@
 require 'discordrb'
-require 'discordrb/webhooks'
 require_relative 'gunsmith_bot'
 require_relative 'query_error'
 
@@ -16,12 +15,9 @@ class GunsmithBotDiscord < Discordrb::Bot
 
   def initialize(prefix: '!')
     raise 'DISCORD_API_KEY not set' unless ENV['DISCORD_API_TOKEN'].present?
-    raise 'WEBHOOK_URL not set' unless ENV['WEBHOOK_URL'].present?
 
     @prefix = prefix
-
-    @bot            = Discordrb::Commands::CommandBot.new token: ENV['DISCORD_API_TOKEN'], prefix: @prefix, name: BOT_NAME
-    @webhook_client = Discordrb::Webhooks::Client.new(url: ENV['WEBHOOK_URL'])
+    @bot    = Discordrb::Commands::CommandBot.new token: ENV['DISCORD_API_TOKEN'], prefix: @prefix, name: BOT_NAME
 
 
     # Here we output the invite URL to the console so the bot account can be invited to the channel. This only has to be
@@ -51,21 +47,9 @@ HELP
     end
 
     @bot.command :show do |event, *args|
-      # Commands send whatever is returned from the block to the channel. This allows for compact commands like this,
-      # but you have to be aware of this so you don't accidentally return something you didn't intend to.
-      # To prevent the return value to be sent to the channel, you can just return `nil`.
-      # event.user.name
-
-
       results = nil
 
       begin
-        # Split the input into words, and strip out the element that represents our own
-        # userid (which will look something like '<@UCNTC2YH0>')
-        # args = args.grep_v(/^<@[A-Z0-9]+>$/)
-        #
-        # args = args.grep_v('!show')
-
         case args.length
           when 1
             # If they didn't provide a gamertag, use the first name of the Slack
@@ -91,7 +75,7 @@ HELP
 
         results = $gunsmith_bot.query(requested_gamertag, requested_platform, requested_slot)
       rescue QueryError => message
-        print_usage(user: event&.user, additional_message: message)
+        print_usage(event: event, additional_message: message)
       end
 
       break if results.blank?
@@ -172,25 +156,23 @@ HELP
 
       attachment_footer = 'No stats, but it sure looks pretty' if attachment_footer.blank?
 
-      @webhook_client.execute do |builder|
-        builder.content = message_text
-        builder.add_embed do |embed|
-          embed.title       = attachment_title
-          embed.description = attachment_text
-          embed.color       = BungieApi.get_hex_color_for_damage_type(results[:item][:damage_type])
-          embed.url         = destiny_tracker_url
-          embed.thumbnail   = Discordrb::Webhooks::EmbedImage.new(url: icon_url)
-          embed.footer      = Discordrb::Webhooks::EmbedFooter.new(text: attachment_footer, icon_url: BOT_ICON_URL)
-          embed.timestamp   = Time.now
 
-          attachment_fields.each do |field|
-            new_field          = {}
-            new_field[:name]   = field.dig(:title) || '.'
-            new_field[:value]  = field.dig(:value) || '.'
-            new_field[:inline] = !!field.dig(:short)
+      event&.channel&.send_embed(message_text) do |embed|
+        embed.title       = attachment_title
+        embed.description = attachment_text
+        embed.color       = BungieApi.get_hex_color_for_damage_type(results[:item][:damage_type])
+        embed.url         = destiny_tracker_url
+        embed.thumbnail   = Discordrb::Webhooks::EmbedImage.new(url: icon_url)
+        embed.footer      = Discordrb::Webhooks::EmbedFooter.new(text: attachment_footer, icon_url: BOT_ICON_URL)
+        embed.timestamp   = Time.now
 
-            embed.add_field(new_field)
-          end
+        attachment_fields.each do |field|
+          new_field          = {}
+          new_field[:name]   = field.dig(:title) || '.'
+          new_field[:value]  = field.dig(:value) || '.'
+          new_field[:inline] = !!field.dig(:short)
+
+          embed.add_field(new_field)
         end
       end
 
@@ -202,10 +184,13 @@ HELP
     @bot.run
   end
 
-  def print_usage(user:, additional_message:)
+  def print_usage(event:, additional_message:)
+    # Be sure we have a webhook connection available to respond with
+    # return unless @webhook_clients[event&.channel&.id].present?
+
     output = ''
 
-    output += "<@#{user&.id}>: " unless user.blank?
+    output += "<@#{event&.user&.id}>: " unless event&.user.blank?
     output += additional_message.to_s unless additional_message.blank?
     output += "\n"
 
@@ -214,13 +199,12 @@ HELP
 
     output.strip!
 
-    @webhook_client.execute do |builder|
-      builder.content = output
-    end
+    event&.channel&.send_message output
   end
 end
 
 
 $gunsmith_bot = GunsmithBot.new
-bot = GunsmithBotDiscord.new
+bot           = GunsmithBotDiscord.new
 bot.run
+
