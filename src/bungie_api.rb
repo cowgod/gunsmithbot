@@ -161,7 +161,6 @@ class BungieApi
   }.freeze
 
 
-
   def initialize(api_key)
     puts 'Initializing Bungie API... Done.'
     @options = { headers: { 'X-API-Key' => api_key } }
@@ -277,24 +276,40 @@ class BungieApi
         case SOCKET_CATEGORY_IDS.key(category.dig('socketCategoryHash'))
           when :weapon_perks, :armor_perks
 
-            next unless socket_entry&.dig('reusablePlugs')
-
             perk_socket = []
 
-            socket_entry&.dig('reusablePlugs')&.each do |plug|
-              plug_item = @manifest.lookup_item(plug&.dig('plugItemHash'))
-              next unless plug_item
+            if socket_entry&.dig('reusablePlugs')
+              # If the socket supports multiple reusablePlugs, display them all, and mark which is currently selected
+              socket_entry&.dig('reusablePlugs')&.each do |plug|
+                plug_item = @manifest.lookup_item(plug&.dig('plugItemHash'))
+                next unless plug_item
 
-              perk = {
-                hash:        plug_item.dig('hash').to_s,
-                name:        plug_item.dig('displayProperties', 'name'),
-                description: plug_item.dig('displayProperties', 'description'),
-                icon:        plug_item.dig('displayProperties', 'icon'),
-                has_icon:    plug_item.dig('displayProperties', 'hasIcon'),
-                selected:    (plug_item.dig('hash').to_s == socket_entry.dig('plugHash').to_s)
-              }
+                perk = {
+                  hash:        plug_item.dig('hash').to_s,
+                  name:        plug_item.dig('displayProperties', 'name'),
+                  description: plug_item.dig('displayProperties', 'description'),
+                  icon:        plug_item.dig('displayProperties', 'icon'),
+                  has_icon:    plug_item.dig('displayProperties', 'hasIcon'),
+                  selected:    (plug_item.dig('hash').to_s == socket_entry.dig('plugHash').to_s)
+                }
 
-              perk_socket.push perk
+                perk_socket.push perk
+              end
+            else
+              # Otherwise, just display the fixed plug that's in the socket
+              plug_item = @manifest.lookup_item(socket_entry&.dig('plugHash'))
+              if plug_item
+                perk = {
+                  hash:        plug_item.dig('hash').to_s,
+                  name:        plug_item.dig('displayProperties', 'name'),
+                  description: plug_item.dig('displayProperties', 'description'),
+                  icon:        plug_item.dig('displayProperties', 'icon'),
+                  has_icon:    plug_item.dig('displayProperties', 'hasIcon'),
+                  selected:    true
+                }
+
+                perk_socket.push perk
+              end
             end
 
             item_details[:perk_sockets].push perk_socket unless perk_socket.empty?
@@ -349,12 +364,12 @@ class BungieApi
       next unless stat_details
 
       item_details[:stats].push(
-        hash:          stat&.dig('statHash').to_s,
-        name:          stat_details.dig('displayProperties', 'name'),
-        description:   stat_details.dig('displayProperties', 'description'),
-        icon:          stat_details.dig('displayProperties', 'icon'),
-        has_icon:      stat_details.dig('displayProperties', 'hasIcon'),
-        value:         stat&.dig('value')
+        hash:        stat&.dig('statHash').to_s,
+        name:        stat_details.dig('displayProperties', 'name'),
+        description: stat_details.dig('displayProperties', 'description'),
+        icon:        stat_details.dig('displayProperties', 'icon'),
+        has_icon:    stat_details.dig('displayProperties', 'hasIcon'),
+        value:       stat&.dig('value')
       )
     end
 
