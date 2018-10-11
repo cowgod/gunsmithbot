@@ -49,6 +49,9 @@ HELP
     @bot.command :show do |event, *args|
       results = nil
 
+      # Make it look like we're typing
+      event&.channel&.start_typing
+
       begin
         case args.length
           when 1

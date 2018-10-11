@@ -32,6 +32,9 @@ HELP
   command(/.*/) do |client, data, _|
     results = nil
 
+    # Make it look like we're typing
+    client.typing(channel: data.channel)
+
     begin
       # Split the input into words, and strip out the element that represents our own
       # userid (which will look something like '<@UCNTC2YH0>')

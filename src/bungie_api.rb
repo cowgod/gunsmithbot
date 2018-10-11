@@ -374,9 +374,6 @@ class BungieApi
     end
 
 
-    # parsed_response['perks']['data']['perks']
-
-
     item_details
   end
 
