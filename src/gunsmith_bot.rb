@@ -12,40 +12,90 @@ class GunsmithBot
     @bungie_api = BungieApi.new(ENV['BUNGIE_API_TOKEN'])
   end
 
-  def query(requested_gamertag, requested_platform, requested_slot)
-    results = {}
 
+  def query_user_and_platform(requested_gamertag, requested_platform)
+    results = { gamertag_suggestions: [] }
 
-    bucket_id = BungieApi.get_bucket_id(requested_slot)
-    raise QueryError, "Couldn't find the requested slot." unless bucket_id
+    results[:user_info] = @bungie_api.search_user(requested_gamertag, requested_platform)
 
-    results[:slot] = BungieApi.get_bucket_code(bucket_id)
-
-    results[:gamertag_suggestions] = []
-
-    user_info = @bungie_api.search_user(requested_gamertag, requested_platform)
-
-    unless user_info
+    unless results[:user_info]
       search_results = TrialsReportApi.search_user(requested_gamertag, requested_platform)
       raise QueryError, "Couldn't find the requested user." unless search_results&.first
 
-      user_info                      = @bungie_api.search_user(search_results&.first&.dig('displayName'), requested_platform)
+      results[:user_info]            = @bungie_api.search_user(search_results&.first&.dig('displayName'), requested_platform)
       results[:gamertag_suggestions] = search_results.map { |result| result&.dig('displayName') }
     end
 
-    raise QueryError, "Couldn't find the requested user." unless user_info
+    raise QueryError, "Couldn't find the requested user." unless results[:user_info]
 
-    results[:gamertag] = user_info&.dig('displayName')
-    results[:platform] = BungieApi.get_platform_code(user_info&.dig('membershipType'))
+    results[:gamertag] = results[:user_info]&.dig('displayName')
+    results[:platform] = BungieApi.get_platform_code(results[:user_info]&.dig('membershipType'))
+
+    results
+  end
+
+
+  def query_slot(requested_slot)
+    results = {}
+
+    results[:bucket_id] = BungieApi.get_bucket_id(requested_slot)
+    raise QueryError, "Couldn't find the requested slot." unless results[:bucket_id]
+
+    results[:slot] = BungieApi.get_bucket_code(results[:bucket_id])
+
+    results
+  end
+
+
+  def query(requested_gamertag, requested_platform, requested_slot)
+    results = {}
+
+    user_results = query_user_and_platform(requested_gamertag, requested_platform)
+    user_info    = user_results.dig(:user_info)
+    results.merge!(user_results)
+
+    slot_results = query_slot(requested_slot)
+    results.merge!(slot_results)
+
 
     character = @bungie_api.active_char_with_equipment(user_info['membershipType'], user_info['membershipId'])
     raise QueryError, "Couldn't find the most recently used character for the requested user." unless character
 
-    requested_item = character.dig('items').find { |item| item.dig('bucketHash') == bucket_id }
+    requested_item = character.dig('items').find { |item| item.dig('bucketHash') == slot_results[:bucket_id] }
     raise QueryError, "Couldn't find the requested item or armor piece." unless requested_item
 
     results[:item] = @bungie_api.item_details(user_info['membershipType'], user_info['membershipId'], requested_item['itemInstanceId'])
     raise QueryError, "Couldn't load info for the requested item or armor piece." unless results[:item]
+
+    results
+  end
+
+
+  def query_loadout(requested_gamertag, requested_platform)
+    results = {}
+
+    user_results = query_user_and_platform(requested_gamertag, requested_platform)
+    user_info    = user_results.dig(:user_info)
+    results.merge!(user_results)
+
+
+    character = @bungie_api.active_char_with_equipment(user_info['membershipType'], user_info['membershipId'])
+    raise QueryError, "Couldn't find the most recently used character for the requested user." unless character
+
+
+    results[:slots] = {}
+
+    BungieApi::ITEM_BUCKET_IDS.each_key do |slot|
+      next unless %i[KINETIC_WEAPON ENERGY_WEAPON HEAVY_WEAPON GHOST HEAD ARMS CHEST LEGS CLASS_ITEM SUBCLASS].include?(slot)
+
+      slot_results = query_slot(slot)
+
+      requested_item = character.dig('items').find { |item| item.dig('bucketHash') == slot_results[:bucket_id] }
+      raise QueryError, "Couldn't find the requested item or armor piece." unless requested_item
+
+      results[:slots][slot] = @bungie_api.item_details(user_info['membershipType'], user_info['membershipId'], requested_item['itemInstanceId'])
+      raise QueryError, "Couldn't load info for the requested item or armor piece." unless results[:slots][slot]
+    end
 
     results
   end

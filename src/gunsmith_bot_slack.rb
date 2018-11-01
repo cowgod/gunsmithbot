@@ -12,19 +12,24 @@ class GunsmithBotSlack < SlackRubyBot::Bot
 
 
   command 'help' do |client, data, _|
-    output = <<HELP
-To show off your weapon/armor, message the bot with your gamertag, network, and weapon/armor slot, separated by spaces. The bot will always look at the *most recently played character* on your account.
-The standard usage looks like this: ```@#{BOT_USERNAME} MyGamerTag playstation kinetic```
-
-If you've set up your Slack profile so that your *title* ("What I Do") matches your in-game username, you can omit this: ```@#{BOT_USERNAME} playstation helmet```
-
-If your gamertag only exists on one network, that can be omitted as well: ```@#{BOT_USERNAME} heavy```
-
-*Special note to Xbox Users:*
-If your gamertag has any spaces in it, these will need to be substituted with underscores (\"_\") in order for the bot to recognize the input properly.
-This is only required when inputting the gamertag manually however; spaces are fine in your Slack title.\n\n
-_Keep that thing oiled, guardian._
-HELP
+    output = <<~HELP
+      To show off your weapon/armor, message the bot with your gamertag, network, and weapon/armor slot, separated by spaces. The bot will always look at the *most recently played character* on your account.
+      The standard usage looks like this: ```@#{BOT_USERNAME} MyGamerTag playstation kinetic```
+      
+      If you've set up your Slack profile so that your *title* ("What I Do") matches your in-game username, you can omit this: ```@#{BOT_USERNAME} playstation helmet```
+      
+      If your gamertag only exists on one network, that can be omitted as well: ```@#{BOT_USERNAME} heavy```
+      
+      Alternatively, instead of a specific slot, you can say `loadout`, and you'll get a complete summary of every weapon and armor piece currently equipped.
+      
+      The full list of supported slots is:```#{BungieApi::ITEM_BUCKET_IDS.values.map {|bucket_id| BungieApi.get_bucket_code(bucket_id)}.reject(&:blank?).join(', ')}, loadout```
+      
+      *Special note to Xbox Users:*
+      If your gamertag has any spaces in it, these will need to be substituted with underscores (`_`) in order for the bot to recognize the input properly.
+      This is only required when inputting the gamertag manually however; spaces are fine in your Slack title.
+      
+      _Keep that thing oiled, guardian._
+    HELP
 
     client.say(text: output, channel: data.channel)
   end
@@ -60,14 +65,24 @@ HELP
       end
 
 
-      results = $gunsmith_bot.query(requested_gamertag, requested_platform, requested_slot)
+      if requested_slot.strip.downcase == 'loadout'
+        results = $gunsmith_bot.query_loadout(requested_gamertag, requested_platform)
+        break if results.blank?
+
+        loadout_response(client, data, results)
+      else
+        results = $gunsmith_bot.query(requested_gamertag, requested_platform, requested_slot)
+        break if results.blank?
+
+        single_slot_response(client, data, results)
+      end
     rescue QueryError => message
-      GunsmithBotSlack.print_usage(client, data, message)
+      print_usage(client, data, message)
     end
+  end
 
-    break if results.blank?
 
-
+  def self.single_slot_response(client, data, results)
     # Prepare output
     destiny_tracker_url = "https://db.destinytracker.com/d2/en/items/#{URI.encode(results[:item][:hash])}"
     icon_url            = results[:item][:has_icon] ? "https://www.bungie.net/#{URI.encode(results[:item][:icon])}" : nil
@@ -89,9 +104,10 @@ HELP
     message_text.strip!
 
 
-    attachment_title    =  results[:item][:name]
+    attachment_title    = results[:item][:name]
     attachment_text     = "#{results[:item][:type_and_tier]} - #{results[:item][:power_level]} PL\n#{results[:item][:description]}"
     attachment_fallback = "#{results[:item][:name]} - #{results[:item][:type_and_tier]} - #{results[:item][:power_level]} PL - #{results[:item][:description]}"
+    attachment_color    = BungieApi.get_hex_color_for_damage_type(results[:item].dig(:masterwork, :damage_resistance_type) || results[:item].dig(:damage_type))
 
     attachment_fields = []
 
@@ -151,7 +167,7 @@ HELP
       text:        message_text,
       attachments: [
                      {
-                       color:       BungieApi.get_hex_color_for_damage_type(results[:item][:damage_type]),
+                       color:       attachment_color,
                        title:       attachment_title,
                        title_link:  destiny_tracker_url,
                        thumb_url:   icon_url,
@@ -167,6 +183,104 @@ HELP
                    ].to_json
     )
   end
+
+
+  def self.loadout_response(client, data, results)
+    # Prepare output
+
+    message_text = ''
+    message_text += "<@#{data&.user}>: " unless data&.user&.blank?
+    message_text += "`#{results[:gamertag]} #{results[:platform]} loadout`\n"
+
+    unless results[:gamertag_suggestions]&.blank?
+      message_text += 'Gamertag Suggestions: '
+
+      message_text += results[:gamertag_suggestions]
+        .take(5)
+        .map { |gamertag| "`#{gamertag}`" }
+        .join(', ')
+    end
+
+    message_text += "\n#{results&.dig(:slots, :SUBCLASS, :name)}"
+
+    message_text.strip!
+
+
+    attachments = []
+
+    results[:slots].each do |slot, item|
+      destiny_tracker_url = "https://db.destinytracker.com/d2/en/items/#{URI.encode(item[:hash])}"
+      icon_url            = item[:has_icon] ? "https://www.bungie.net/#{URI.encode(item[:icon])}" : nil
+
+      # attachment_title    = results[:item][:name]
+      # attachment_text     = "#{results[:item][:type_and_tier]} - #{results[:item][:power_level]} PL\n#{results[:item][:description]}"
+      # attachment_fallback = "#{results[:item][:name]} - #{results[:item][:type_and_tier]} - #{results[:item][:power_level]} PL - #{results[:item][:description]}"
+
+      attachment_fields = []
+
+      next unless %i[KINETIC_WEAPON ENERGY_WEAPON HEAVY_WEAPON HEAD ARMS CHEST LEGS CLASS_ITEM].include?(slot)
+
+      attachment_title = "[#{BungieApi.get_bucket_name(slot)}]: #{item[:name]} (#{item[:type_and_tier]} - #{item[:power_level]} PL)"
+
+      attachment_color = BungieApi.get_hex_color_for_damage_type(item.dig(:masterwork, :damage_resistance_type) || item.dig(:damage_type))
+
+      field_text = '- Perks: '
+
+      field_text += item[:perk_sockets]
+        .map do |perk_socket|
+        perk_socket
+          .select { |perk| perk[:selected] }
+          .map { |perk| perk[:name] }
+          .join(', ')
+      end
+        .join(', ')
+
+      if item[:masterwork]
+        field_text += "\n- Masterwork: #{item[:masterwork][:affected_stat]} - #{item[:masterwork][:value]}"
+      end
+
+      if item[:mod]
+        field_text += "\n- Mod: #{item[:mod][:name]}"
+      end
+
+      next if field_text.blank? || field_text == '- Perks: '
+
+      attachment_fields.push({
+                               # title: field_title,
+                               value: field_text,
+                               short: false
+                             })
+
+      attachments.push(
+        {
+          color:      attachment_color,
+          title:      attachment_title,
+          title_link: destiny_tracker_url,
+          thumb_url:  icon_url,
+          # text:       attachment_text,
+          # fallback:    attachment_fallback,
+          fields: attachment_fields,
+          # footer_icon: BOT_ICON_URL,
+          # footer:      BOT_NAME,
+          # footer: attachment_footer,
+          # ts:        Time.now.to_i,
+          mrkdwn_in: ['fields']
+        }
+      )
+    end
+
+
+    # attachment_footer = 'No stats, but it sure looks pretty' if attachment_footer.blank?
+
+
+    client.web_client.chat_postMessage(
+      channel:     data.channel,
+      as_user:     true,
+      text:        message_text,
+      attachments: attachments.to_json
+    )
+  end
+
 
   def self.print_usage(client, data, additional_message = nil)
     output = ''

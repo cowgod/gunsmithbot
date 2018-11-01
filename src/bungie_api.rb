@@ -156,7 +156,7 @@ class BungieApi
   DAMAGE_COLOR = {
     kinetic: '#d9d9d9',
     arc:     '#80b3ff',
-    solar:   '#e68a00',
+    thermal: '#e68a00',
     void:    '#400080'
   }.freeze
 
@@ -338,6 +338,20 @@ class BungieApi
                 affected_stat = plug_item.dig('investmentStats')&.first
                 stat_details  = @manifest.lookup_stat(affected_stat&.dig('statTypeHash'))
 
+                case stat_details&.dig('displayProperties', 'name')
+                  when /Arc Damage Resistance/i
+                    damage_resistance_type = DAMAGE_TYPES[:Arc]
+                  when /Solar Damage Resistance/i
+                    damage_resistance_type = DAMAGE_TYPES[:Thermal]
+                  when /Void Damage Resistance/i
+                    damage_resistance_type = DAMAGE_TYPES[:Void]
+                  else
+                    damage_resistance_type = nil
+                end
+
+                damage_resistance_type = (DAMAGE_TYPES.key(damage_resistance_type) || 'Unknown').to_s if damage_resistance_type
+
+                
                 item_details[:masterwork] = {
                   hash:          plug_item.dig('hash').to_s,
                   name:          plug_item.dig('displayProperties', 'name'),
@@ -345,7 +359,8 @@ class BungieApi
                   icon:          plug_item.dig('displayProperties', 'icon'),
                   has_icon:      plug_item.dig('displayProperties', 'hasIcon'),
                   affected_stat: stat_details&.dig('displayProperties', 'name'),
-                  value:         affected_stat&.dig('value')
+                  value:         affected_stat&.dig('value'),
+                  damage_resistance_type: damage_resistance_type
                 }
 
             end
@@ -404,8 +419,12 @@ class BungieApi
     end
   end
 
-  def self.get_bucket_id(bucket_name)
-    case bucket_name.to_s.strip.downcase
+  def self.get_bucket_id(bucket)
+    # If they've passed us an actual value or key, use it directly
+    return bucket if ITEM_BUCKET_IDS.value?(bucket)
+    return ITEM_BUCKET_IDS[bucket] if ITEM_BUCKET_IDS.key?(bucket)
+
+    case bucket.to_s.strip.downcase
       when 'primary', 'kinetic'
         ITEM_BUCKET_IDS[:KINETIC_WEAPON]
       when 'special', 'secondary', 'energy'
@@ -464,6 +483,12 @@ class BungieApi
       else
         nil
     end
+  end
+
+  def self.get_bucket_name(bucket_code)
+    normalized_bucket_code = get_bucket_code(ITEM_BUCKET_IDS[bucket_code.to_sym])
+    return bucket_code.to_s.capitalize unless normalized_bucket_code
+    normalized_bucket_code.to_s.gsub(/\w+/, &:capitalize)
   end
 
 
