@@ -76,100 +76,218 @@ HELP
         end
 
 
-        results = $gunsmith_bot.query(requested_gamertag, requested_platform, requested_slot)
+        if requested_slot.strip.downcase == 'loadout'
+          results = $gunsmith_bot.query_loadout(requested_gamertag, requested_platform)
+          break if results.blank?
+
+          loadout_response(event, results)
+        else
+          results = $gunsmith_bot.query(requested_gamertag, requested_platform, requested_slot)
+          break if results.blank?
+
+          single_slot_response(event, results)
+        end
       rescue QueryError => message
         print_usage(event: event, additional_message: message)
       end
 
-      break if results.blank?
+      nil
+    end
+  end
+
+  def single_slot_response(event, results)
+    # Prepare output
+    destiny_tracker_url = "https://db.destinytracker.com/d2/en/items/#{URI.encode(results[:item][:hash])}"
+    icon_url            = results[:item][:has_icon] ? "https://www.bungie.net#{URI.encode(results[:item][:icon])}" : nil
 
 
-      # Prepare output
-      destiny_tracker_url = "https://db.destinytracker.com/d2/en/items/#{URI.encode(results[:item][:hash])}"
-      icon_url            = results[:item][:has_icon] ? "https://www.bungie.net#{URI.encode(results[:item][:icon])}" : nil
+    message_text = "<@#{event&.user&.id}>: "
+    message_text += "`#{results[:gamertag]} #{results[:platform]} #{results[:slot]}`\n"
+
+    if results[:gamertag_suggestions].present?
+      message_text += 'Gamertag Suggestions: '
+
+      message_text += results[:gamertag_suggestions]
+        .take(5)
+        .map { |gamertag| "`#{gamertag}`" }
+        .join(', ')
+    end
+
+    message_text.strip!
 
 
-      message_text = "<@#{event&.user&.id}>: "
-      message_text += "`#{results[:gamertag]} #{results[:platform]} #{results[:slot]}`\n"
+    attachment_title = results[:item][:name]
+    attachment_text  = "#{results[:item][:type_and_tier]} - #{results[:item][:power_level]} PL\n#{results[:item][:description]}"
 
-      if results[:gamertag_suggestions].present?
-        message_text += 'Gamertag Suggestions: '
 
-        message_text += results[:gamertag_suggestions]
-          .take(5)
-          .map { |gamertag| "`#{gamertag}`" }
-          .join(', ')
+    attachment_fields = []
+
+    # Perks
+    field_text = results[:item][:perk_sockets]
+      .map do |perk_socket|
+      perk_socket.map do |perk|
+        perk[:selected] ? "**#{perk[:name]}**" : perk[:name]
       end
+        .join(' | ')
+    end
+      .map { |line| "- #{line}" }
+      .join("\n")
 
-      message_text.strip!
+    unless field_text.blank?
+      attachment_fields.push({
+                               title: 'Perks',
+                               value: field_text,
+                               short: false
+                             })
+    end
 
 
-      attachment_title = results[:item][:name]
-      attachment_text  = "#{results[:item][:type_and_tier]} - #{results[:item][:power_level]} PL\n#{results[:item][:description]}"
+    # Masterwork / Mod
+    attachment_fields.push({
+                             title: 'Masterwork',
+                             value: results[:item][:masterwork] ? "#{results[:item][:masterwork][:affected_stat]} - #{results[:item][:masterwork][:value]}" : 'n/a',
+                             short: true
+                           })
 
+    attachment_fields.push({
+                             title: 'Mod',
+                             ### TODO -- get rid of description?
+                             value: results[:item][:mod] ? results[:item][:mod][:name].to_s : 'n/a',
+                             short: true
+                           })
+
+
+    # Stats
+    stat_abbreviations = {
+      'Rounds Per Minute' => 'RPM',
+      'Reload Speed'      => 'Reload',
+      # 'Magazine' => 'Mag'
+    }
+
+    attachment_footer = results[:item][:stats]
+      .each { |stat| stat[:name].to_s.gsub!(/^(#{stat_abbreviations.keys.join('|')})$/, stat_abbreviations) }
+      .map { |stat| "#{stat[:name]}: #{stat[:value]}" }
+      .join(', ')
+
+    attachment_footer = 'No stats, but it sure looks pretty' if attachment_footer.blank?
+
+
+    event&.channel&.send_embed(message_text) do |embed|
+      embed.title       = attachment_title
+      embed.description = attachment_text
+      embed.color       = BungieApi.get_hex_color_for_damage_type(results[:item][:damage_type])
+      embed.url         = destiny_tracker_url
+      embed.thumbnail   = Discordrb::Webhooks::EmbedImage.new(url: icon_url)
+      embed.footer      = Discordrb::Webhooks::EmbedFooter.new(text: attachment_footer, icon_url: BOT_ICON_URL)
+      embed.timestamp   = Time.now
+
+      attachment_fields.each do |field|
+        new_field          = {}
+        new_field[:name]   = field.dig(:title) || '.'
+        new_field[:value]  = field.dig(:value) || '.'
+        new_field[:inline] = !!field.dig(:short)
+
+        embed.add_field(new_field)
+      end
+    end
+
+    nil
+  end
+
+  def loadout_response(event, results)
+    # Prepare output
+
+    message_text = "<@#{event&.user&.id}>: "
+    message_text += "`#{results[:gamertag]} #{results[:platform]} loadout`\n"
+
+
+    unless results[:gamertag_suggestions]&.blank?
+      message_text += 'Gamertag Suggestions: '
+
+      message_text += results[:gamertag_suggestions]
+        .take(5)
+        .map { |gamertag| "`#{gamertag}`" }
+        .join(', ')
+    end
+
+    message_text += "\n#{results&.dig(:slots, :SUBCLASS, :name)}"
+
+    message_text.strip!
+
+
+    attachments = []
+
+    results[:slots].each do |slot, item|
+      destiny_tracker_url = "https://db.destinytracker.com/d2/en/items/#{URI.encode(item[:hash])}"
+      icon_url            = item[:has_icon] ? "https://www.bungie.net/#{URI.encode(item[:icon])}" : nil
 
       attachment_fields = []
 
-      # Perks
-      field_text = results[:item][:perk_sockets]
+      next unless %i[KINETIC_WEAPON ENERGY_WEAPON HEAVY_WEAPON HEAD ARMS CHEST LEGS CLASS_ITEM].include?(slot)
+
+      attachment_title = "[#{BungieApi.get_bucket_name(slot)}]: #{item[:name]} (#{item[:type_and_tier]} - #{item[:power_level]} PL)"
+
+      attachment_color = BungieApi.get_hex_color_for_damage_type(item.dig(:masterwork, :damage_resistance_type) || item.dig(:damage_type))
+
+      field_text = '- Perks: '
+
+      field_text += item[:perk_sockets]
         .map do |perk_socket|
-        perk_socket.map do |perk|
-          perk[:selected] ? "**#{perk[:name]}**" : perk[:name]
-        end
-          .join(' | ')
+        perk_socket
+          .select { |perk| perk[:selected] }
+          .map { |perk| perk[:name] }
+          .join(', ')
       end
-        .map { |line| "- #{line}" }
-        .join("\n")
-
-      unless field_text.blank?
-        attachment_fields.push({
-                                 title: 'Perks',
-                                 value: field_text,
-                                 short: false
-                               })
-      end
-
-
-      # Masterwork / Mod
-      attachment_fields.push({
-                               title: 'Masterwork',
-                               value: results[:item][:masterwork] ? "#{results[:item][:masterwork][:affected_stat]} - #{results[:item][:masterwork][:value]}" : 'n/a',
-                               short: true
-                             })
-
-      attachment_fields.push({
-                               title: 'Mod',
-                               ### TODO -- get rid of description?
-                               value: results[:item][:mod] ? results[:item][:mod][:name].to_s : 'n/a',
-                               short: true
-                             })
-
-
-      # Stats
-      stat_abbreviations = {
-        'Rounds Per Minute' => 'RPM',
-        'Reload Speed'      => 'Reload',
-        # 'Magazine' => 'Mag'
-      }
-
-      attachment_footer = results[:item][:stats]
-        .each { |stat| stat[:name].to_s.gsub!(/^(#{stat_abbreviations.keys.join('|')})$/, stat_abbreviations) }
-        .map { |stat| "#{stat[:name]}: #{stat[:value]}" }
         .join(', ')
 
-      attachment_footer = 'No stats, but it sure looks pretty' if attachment_footer.blank?
+      if item[:masterwork]
+        field_text += "\n- Masterwork: #{item[:masterwork][:affected_stat]} - #{item[:masterwork][:value]}"
+      end
+
+      if item[:mod]
+        field_text += "\n- Mod: #{item[:mod][:name]}"
+      end
+
+      next if field_text.blank? || field_text == '- Perks: '
+
+      attachment_fields.push({
+                               # title: field_title,
+                               value: field_text,
+                               short: false
+                             })
+
+      attachments.push(
+        {
+          color:      attachment_color,
+          title:      attachment_title,
+          title_link: destiny_tracker_url,
+          thumb_url:  icon_url,
+          # text:       attachment_text,
+          # fallback:    attachment_fallback,
+          fields: attachment_fields,
+          # footer_icon: BOT_ICON_URL,
+          # footer:      BOT_NAME,
+          # footer: attachment_footer,
+          # ts:        Time.now.to_i,
+          mrkdwn_in: ['fields']
+        }
+      )
+    end
 
 
-      event&.channel&.send_embed(message_text) do |embed|
-        embed.title       = attachment_title
-        embed.description = attachment_text
-        embed.color       = BungieApi.get_hex_color_for_damage_type(results[:item][:damage_type])
-        embed.url         = destiny_tracker_url
-        embed.thumbnail   = Discordrb::Webhooks::EmbedImage.new(url: icon_url)
-        embed.footer      = Discordrb::Webhooks::EmbedFooter.new(text: attachment_footer, icon_url: BOT_ICON_URL)
-        embed.timestamp   = Time.now
+    event&.channel&.send_message(message_text)
 
-        attachment_fields.each do |field|
+    attachments.each do |attachment|
+      event&.channel&.send_embed do |embed|
+        embed.title       = attachment[:title]
+        # embed.description = attachment_text
+        embed.color     = BungieApi.get_hex_color_for_damage_type(attachment[:color])
+        embed.url       = attachment[:title_link]
+        embed.thumbnail = Discordrb::Webhooks::EmbedImage.new(url: attachment[:thumb_url])
+        # embed.footer    = Discordrb::Webhooks::EmbedFooter.new(text: attachment_footer, icon_url: BOT_ICON_URL)
+        # embed.timestamp = Time.now
+
+        attachment[:fields].each do |field|
           new_field          = {}
           new_field[:name]   = field.dig(:title) || '.'
           new_field[:value]  = field.dig(:value) || '.'
@@ -178,9 +296,9 @@ HELP
           embed.add_field(new_field)
         end
       end
-
-      nil
     end
+
+    nil
   end
 
   def run
