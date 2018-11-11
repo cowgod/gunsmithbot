@@ -2,12 +2,6 @@ require 'json'
 
 
 class BungieManifest
-  TABLES = %w[
-    DestinySocketCategoryDefinition
-    DestinyInventoryItemDefinition
-  ].freeze
-
-
   def initialize(manifest_url)
     raise 'Invalid Manifest URL provided' unless manifest_url
     load_manifest(manifest_url)

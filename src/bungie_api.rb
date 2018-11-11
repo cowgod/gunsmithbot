@@ -275,6 +275,8 @@ class BungieApi
 
         case SOCKET_CATEGORY_IDS.key(category.dig('socketCategoryHash'))
           when :weapon_perks, :armor_perks
+            # If this socket isn't marked as visible, we can skip it
+            next unless socket_entry&.dig('isVisible')
 
             perk_socket = []
 
