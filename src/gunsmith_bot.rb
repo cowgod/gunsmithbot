@@ -71,7 +71,18 @@ class GunsmithBot
   end
 
 
-  def query_loadout(requested_gamertag, requested_platform)
+  def self.slots_for_loadout_type(type = :full)
+    case type.to_sym
+      when :weapons
+        %i[KINETIC_WEAPON ENERGY_WEAPON HEAVY_WEAPON GHOST SUBCLASS]
+      when :armor
+        %i[HEAD ARMS CHEST LEGS CLASS_ITEM GHOST SUBCLASS]
+      else
+        %i[KINETIC_WEAPON ENERGY_WEAPON HEAVY_WEAPON HEAD ARMS CHEST LEGS CLASS_ITEM GHOST SUBCLASS]
+    end
+  end
+
+  def query_loadout(requested_gamertag, requested_platform, type = :full)
     results = {}
 
     user_results = query_user_and_platform(requested_gamertag, requested_platform)
@@ -85,8 +96,10 @@ class GunsmithBot
 
     results[:slots] = {}
 
+    slots_to_query = GunsmithBot.slots_for_loadout_type(type)
+
     BungieApi::ITEM_BUCKET_IDS.each_key do |slot|
-      next unless %i[KINETIC_WEAPON ENERGY_WEAPON HEAVY_WEAPON GHOST HEAD ARMS CHEST LEGS CLASS_ITEM SUBCLASS].include?(slot)
+      next unless slots_to_query.include?(slot)
 
       slot_results = query_slot(slot)
 

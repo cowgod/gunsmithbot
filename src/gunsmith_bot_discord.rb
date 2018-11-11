@@ -39,6 +39,10 @@ If your gamertag is the same as your Discord username, you can omit this: ```#{@
 
 If your gamertag only exists on one network, that can be omitted as well: ```#{@prefix}show heavy```
 
+Alternatively, instead of a specific slot, you can say `weapons`, `armor`, or `loadout`, and you'll get a complete summary of every currently equipped weapon, armor piece, or both.
+      
+The full list of supported slots is:```#{BungieApi::ITEM_BUCKET_IDS.values.map { |bucket_id| BungieApi.get_bucket_code(bucket_id) }.reject(&:blank?).join(', ')}, weapons, armor, loadout```
+      
 *Special note to Xbox Users:*
 If your gamertag has any spaces in it, these will need to be substituted with underscores (\"_\") in order for the bot to recognize the input properly.
 This is only required when inputting the gamertag manually however; spaces are fine in your Slack title.\n\n
@@ -76,16 +80,26 @@ HELP
         end
 
 
-        if requested_slot.strip.downcase == 'loadout'
-          results = $gunsmith_bot.query_loadout(requested_gamertag, requested_platform)
-          break if results.blank?
+        case requested_slot.strip.downcase
+          when 'loadout', 'weapons', 'weapon', 'guns', 'gun', 'armor'
+            case requested_slot.strip.downcase
+              when 'weapons', 'weapon', 'guns', 'gun'
+                loadout_type = :weapons
+              when 'armor'
+                loadout_type = :armor
+              else
+                loadout_type = :full
+            end
 
-          loadout_response(event, results)
-        else
-          results = $gunsmith_bot.query(requested_gamertag, requested_platform, requested_slot)
-          break if results.blank?
+            results = $gunsmith_bot.query_loadout(requested_gamertag, requested_platform, loadout_type)
+            break if results.blank?
 
-          single_slot_response(event, results)
+            loadout_response(event, results, loadout_type)
+          else
+            results = $gunsmith_bot.query(requested_gamertag, requested_platform, requested_slot)
+            break if results.blank?
+
+            single_slot_response(event, results)
         end
       rescue QueryError => message
         print_usage(event: event, additional_message: message)
@@ -194,11 +208,20 @@ HELP
     nil
   end
 
-  def loadout_response(event, results)
+  def loadout_response(event, results, type = :full)
     # Prepare output
 
+    case type
+      when :weapons
+        canonical_loadout_type = 'weapons'
+      when :armor
+        canonical_loadout_type = 'armor'
+      else
+        canonical_loadout_type = 'loadout'
+    end
+
     message_text = "<@#{event&.user&.id}>: "
-    message_text += "`#{results[:gamertag]} #{results[:platform]} loadout`\n"
+    message_text += "`#{results[:gamertag]} #{results[:platform]} #{canonical_loadout_type}`\n"
 
 
     unless results[:gamertag_suggestions]&.blank?
@@ -217,12 +240,19 @@ HELP
 
     attachments = []
 
+    slots_to_query = GunsmithBot.slots_for_loadout_type(type)
+
     results[:slots].each do |slot, item|
       destiny_tracker_url = "https://db.destinytracker.com/d2/en/items/#{URI.encode(item[:hash])}"
       icon_url            = item[:has_icon] ? "https://www.bungie.net/#{URI.encode(item[:icon])}" : nil
 
+
       attachment_fields = []
 
+      # If they requested a more limited loadout like 'weapons' or 'armor', then filter the fields we're returning
+      next unless slots_to_query.include?(slot)
+
+      # Even if they requested a full loadout, we don't care about certain fields like emblems
       next unless %i[KINETIC_WEAPON ENERGY_WEAPON HEAVY_WEAPON HEAD ARMS CHEST LEGS CLASS_ITEM].include?(slot)
 
       attachment_title = "[#{BungieApi.get_bucket_name(slot)}]: #{item[:name]} (#{item[:type_and_tier]} - #{item[:power_level]} PL)"
