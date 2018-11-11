@@ -131,7 +131,14 @@ HELP
 
 
     attachment_title = results[:item][:name]
-    attachment_text  = "#{results[:item][:type_and_tier]} - #{results[:item][:power_level]} PL\n#{results[:item][:description]}"
+
+    attachment_text = ''
+    attachment_text += "#{results[:item][:type_and_tier]} - **#{results[:item][:power_level]} PL**"
+    attachment_text += results[:item]&.dig(:objectives)
+      &.map { |objective| "\n#{objective&.dig(:label)}: **#{objective&.dig(:value)}**" }
+      &.join(', ').to_s
+    attachment_text += "\n#{results[:item][:description]}\n"
+    attachment_text.strip!
 
 
     attachment_fields = []

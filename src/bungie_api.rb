@@ -260,6 +260,7 @@ class BungieApi
       tier:             item.dig('inventory', 'tierTypeName'),
       type:             item.dig('itemTypeDisplayName'),
       type_and_tier:    item.dig('itemTypeAndTierDisplayName'),
+      objectives:       []
     }
 
     item_details[:perk_sockets] = []
@@ -286,16 +287,32 @@ class BungieApi
                 plug_item = @manifest.lookup_item(plug&.dig('plugItemHash'))
                 next unless plug_item
 
+                plug_objectives = plug&.dig('plugObjectives')
+                  &.select { |objective| objective&.dig('visible') }
+                  &.map do |objective|
+                    objective_item = @manifest.lookup_objective(objective&.dig('objectiveHash'))
+
+                    {
+                      label: objective_item&.dig('progressDescription'),
+                      value: objective&.dig('progress')
+                    }
+                  end
+
                 perk = {
                   hash:        plug_item.dig('hash').to_s,
                   name:        plug_item.dig('displayProperties', 'name'),
                   description: plug_item.dig('displayProperties', 'description'),
                   icon:        plug_item.dig('displayProperties', 'icon'),
                   has_icon:    plug_item.dig('displayProperties', 'hasIcon'),
-                  selected:    (plug_item.dig('hash').to_s == socket_entry.dig('plugHash').to_s)
+                  selected:    (plug_item.dig('hash').to_s == socket_entry.dig('plugHash').to_s),
+                  objectives:  plug_objectives
                 }
 
                 perk_socket.push perk
+
+
+                # If the perk is currently selected and it has any associated objectives, add them to the item as a whole
+                item_details[:objectives] += plug_objectives if perk[:selected] && plug_objectives.present?
               end
             else
               # Otherwise, just display the fixed plug that's in the socket
@@ -353,15 +370,15 @@ class BungieApi
 
                 damage_resistance_type = (DAMAGE_TYPES.key(damage_resistance_type) || 'Unknown').to_s if damage_resistance_type
 
-                
+
                 item_details[:masterwork] = {
-                  hash:          plug_item.dig('hash').to_s,
-                  name:          plug_item.dig('displayProperties', 'name'),
-                  description:   plug_item.dig('displayProperties', 'description'),
-                  icon:          plug_item.dig('displayProperties', 'icon'),
-                  has_icon:      plug_item.dig('displayProperties', 'hasIcon'),
-                  affected_stat: stat_details&.dig('displayProperties', 'name'),
-                  value:         affected_stat&.dig('value'),
+                  hash:                   plug_item.dig('hash').to_s,
+                  name:                   plug_item.dig('displayProperties', 'name'),
+                  description:            plug_item.dig('displayProperties', 'description'),
+                  icon:                   plug_item.dig('displayProperties', 'icon'),
+                  has_icon:               plug_item.dig('displayProperties', 'hasIcon'),
+                  affected_stat:          stat_details&.dig('displayProperties', 'name'),
+                  value:                  affected_stat&.dig('value'),
                   damage_resistance_type: damage_resistance_type
                 }
 

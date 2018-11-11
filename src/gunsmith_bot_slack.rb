@@ -114,10 +114,19 @@ class GunsmithBotSlack < SlackRubyBot::Bot
     message_text.strip!
 
 
-    attachment_title    = results[:item][:name]
-    attachment_text     = "#{results[:item][:type_and_tier]} - #{results[:item][:power_level]} PL\n#{results[:item][:description]}"
-    attachment_fallback = "#{results[:item][:name]} - #{results[:item][:type_and_tier]} - #{results[:item][:power_level]} PL - #{results[:item][:description]}"
-    attachment_color    = BungieApi.get_hex_color_for_damage_type(results[:item].dig(:masterwork, :damage_resistance_type) || results[:item].dig(:damage_type))
+    attachment_title = results[:item][:name]
+
+    attachment_text = ''
+    attachment_text += "#{results[:item][:type_and_tier]} - *#{results[:item][:power_level]} PL*"
+    attachment_text += results[:item]&.dig(:objectives)
+      &.map { |objective| "\n#{objective&.dig(:label)}: *#{objective&.dig(:value)}*" }
+      &.join(', ').to_s
+    attachment_text += "\n#{results[:item][:description]}\n"
+    attachment_text.strip!
+
+    attachment_fallback = attachment_text.gsub(/\n/, ' - ')
+
+    attachment_color = BungieApi.get_hex_color_for_damage_type(results[:item].dig(:masterwork, :damage_resistance_type) || results[:item].dig(:damage_type))
 
     attachment_fields = []
 

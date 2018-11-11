@@ -24,6 +24,10 @@ class BungieManifest
     lookup_item_in_table('DestinyStatDefinition', hash)
   end
 
+  def lookup_objective(hash)
+    lookup_item_in_table('DestinyObjectiveDefinition', hash)
+  end
+
 
   private
 
