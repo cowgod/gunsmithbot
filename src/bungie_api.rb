@@ -341,7 +341,7 @@ class BungieApi
 
             case plug_item&.dig('plug', 'plugCategoryIdentifier')
               #v400.weapon.mod_empty
-              when 'v400.weapon.mod_guns', 'enhancements.universal'
+              when /v400\.weapon\.mod_/, 'enhancements.universal'
                 next if plug_item&.dig('displayProperties', 'name') == 'Empty Mod Socket'
                 # next unless plug_item&.dig('investmentStats')&.first
 
@@ -357,16 +357,16 @@ class BungieApi
                 affected_stat = plug_item.dig('investmentStats')&.first
                 stat_details  = @manifest.lookup_stat(affected_stat&.dig('statTypeHash'))
 
-                case stat_details&.dig('displayProperties', 'name')
+                damage_resistance_type = case stat_details&.dig('displayProperties', 'name')
                   when /Arc Damage Resistance/i
-                    damage_resistance_type = DAMAGE_TYPES[:Arc]
+                    DAMAGE_TYPES[:Arc]
                   when /Solar Damage Resistance/i
-                    damage_resistance_type = DAMAGE_TYPES[:Thermal]
+                    DAMAGE_TYPES[:Thermal]
                   when /Void Damage Resistance/i
-                    damage_resistance_type = DAMAGE_TYPES[:Void]
+                    DAMAGE_TYPES[:Void]
                   else
-                    damage_resistance_type = nil
-                end
+                    nil
+                  end
 
                 damage_resistance_type = (DAMAGE_TYPES.key(damage_resistance_type) || 'Unknown').to_s if damage_resistance_type
 
