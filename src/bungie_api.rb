@@ -246,65 +246,65 @@ class BungieApi
     item_hash = item_instance.dig('item', 'data', 'itemHash').to_s
     return nil unless item_hash
 
-    item = @manifest.lookup_item(item_hash)
+    item_definition = @manifest.lookup_item(item_hash)
 
     item_details = {
       hash:             item_hash,
       item_instance_id: item_instance.dig('item', 'data', 'itemInstanceId'),
       damage_type:      (DAMAGE_TYPES.key(item_instance.dig('instance', 'data', 'damageType')) || 'Unknown').to_s,
       power_level:      item_instance.dig('instance', 'data', 'primaryStat', 'value'),
-      name:             item.dig('displayProperties', 'name'),
-      description:      item.dig('displayProperties', 'description'),
-      icon:             item.dig('displayProperties', 'icon'),
-      has_icon:         item.dig('displayProperties', 'hasIcon'),
-      tier:             item.dig('inventory', 'tierTypeName'),
-      type:             item.dig('itemTypeDisplayName'),
-      type_and_tier:    item.dig('itemTypeAndTierDisplayName'),
+      name:             item_definition.dig('displayProperties', 'name'),
+      description:      item_definition.dig('displayProperties', 'description'),
+      icon:             item_definition.dig('displayProperties', 'icon'),
+      has_icon:         item_definition.dig('displayProperties', 'hasIcon'),
+      tier:             item_definition.dig('inventory', 'tierTypeName'),
+      type:             item_definition.dig('itemTypeDisplayName'),
+      type_and_tier:    item_definition.dig('itemTypeAndTierDisplayName'),
       objectives:       []
     }
 
     item_details[:perk_sockets] = []
 
-    item&.dig('sockets', 'socketCategories')&.each do |category|
+    item_definition&.dig('sockets', 'socketCategories')&.each do |category|
       category&.dig('socketIndexes')&.each do |socket_index|
         ### Manifest data:
-        # socket_entry = item.dig('sockets', 'socketEntries')[socket_index]
+        # socket_definition = item_definition.dig('sockets', 'socketEntries')[socket_index]
 
         ### Item instance data:
-        socket_entry = item_instance&.dig('sockets', 'data', 'sockets')&.dig(socket_index)
-        next unless socket_entry
+        socket_instance = item_instance&.dig('sockets', 'data', 'sockets')&.dig(socket_index)
+        next unless socket_instance
 
         case SOCKET_CATEGORY_IDS.key(category.dig('socketCategoryHash'))
           when :weapon_perks, :armor_perks
             # If this socket isn't marked as visible, we can skip it
-            next unless socket_entry&.dig('isVisible')
+            next unless socket_instance&.dig('isVisible')
 
             perk_socket = []
 
-            if socket_entry&.dig('reusablePlugs')
+            if socket_instance&.dig('reusablePlugs')
               # If the socket supports multiple reusablePlugs, display them all, and mark which is currently selected
-              socket_entry&.dig('reusablePlugs')&.each do |plug|
-                plug_item = @manifest.lookup_item(plug&.dig('plugItemHash'))
-                next unless plug_item
+              socket_instance&.dig('reusablePlugs')&.each do |plug|
+                plug_definition = @manifest.lookup_item(plug&.dig('plugItemHash'))
+                next unless plug_definition
 
                 plug_objectives = plug&.dig('plugObjectives')
                   &.select { |objective| objective&.dig('visible') }
                   &.map do |objective|
-                    objective_item = @manifest.lookup_objective(objective&.dig('objectiveHash'))
+                  objective_definition = @manifest.lookup_objective(objective&.dig('objectiveHash'))
 
-                    {
-                      label: objective_item&.dig('progressDescription'),
-                      value: objective&.dig('progress')
-                    }
-                  end
+                  {
+                    label: objective_definition&.dig('progressDescription'),
+                    value: objective&.dig('progress')
+                  }
+                end
 
                 perk = {
-                  hash:        plug_item.dig('hash').to_s,
-                  name:        plug_item.dig('displayProperties', 'name'),
-                  description: plug_item.dig('displayProperties', 'description'),
-                  icon:        plug_item.dig('displayProperties', 'icon'),
-                  has_icon:    plug_item.dig('displayProperties', 'hasIcon'),
-                  selected:    (plug_item.dig('hash').to_s == socket_entry.dig('plugHash').to_s),
+                  hash:        plug_definition.dig('hash').to_s,
+                  name:        plug_definition.dig('displayProperties', 'name'),
+                  description: plug_definition.dig('displayProperties', 'description'),
+                  icon:        plug_definition.dig('displayProperties', 'icon'),
+                  has_icon:    plug_definition.dig('displayProperties', 'hasIcon'),
+                  selected:    (plug_definition.dig('hash').to_s == socket_instance&.dig('plugHash').to_s),
                   objectives:  plug_objectives
                 }
 
@@ -316,14 +316,14 @@ class BungieApi
               end
             else
               # Otherwise, just display the fixed plug that's in the socket
-              plug_item = @manifest.lookup_item(socket_entry&.dig('plugHash'))
-              if plug_item
+              plug_definition = @manifest.lookup_item(socket_instance&.dig('plugHash'))
+              if plug_definition
                 perk = {
-                  hash:        plug_item.dig('hash').to_s,
-                  name:        plug_item.dig('displayProperties', 'name'),
-                  description: plug_item.dig('displayProperties', 'description'),
-                  icon:        plug_item.dig('displayProperties', 'icon'),
-                  has_icon:    plug_item.dig('displayProperties', 'hasIcon'),
+                  hash:        plug_definition.dig('hash').to_s,
+                  name:        plug_definition.dig('displayProperties', 'name'),
+                  description: plug_definition.dig('displayProperties', 'description'),
+                  icon:        plug_definition.dig('displayProperties', 'icon'),
+                  has_icon:    plug_definition.dig('displayProperties', 'hasIcon'),
                   selected:    true
                 }
 
@@ -335,26 +335,25 @@ class BungieApi
 
 
           when :weapon_mods, :armor_mods
+            plug_definition = @manifest.lookup_item(socket_instance&.dig('plugHash'))
+            next unless plug_definition && plug_definition&.dig('plug')
 
-            plug_item = @manifest.lookup_item(socket_entry&.dig('plugHash'))
-            next unless plug_item && plug_item&.dig('plug')
-
-            case plug_item&.dig('plug', 'plugCategoryIdentifier')
+            case plug_definition&.dig('plug', 'plugCategoryIdentifier')
               #v400.weapon.mod_empty
               when /v400\.weapon\.mod_/, 'enhancements.universal'
-                next if plug_item&.dig('displayProperties', 'name') == 'Empty Mod Socket'
+                next if plug_definition&.dig('displayProperties', 'name') == 'Empty Mod Socket'
                 # next unless plug_item&.dig('investmentStats')&.first
 
                 item_details[:mod] = {
-                  hash:        plug_item.dig('hash').to_s,
-                  name:        plug_item.dig('displayProperties', 'name'),
-                  description: plug_item.dig('displayProperties', 'description'),
-                  icon:        plug_item.dig('displayProperties', 'icon'),
-                  has_icon:    plug_item.dig('displayProperties', 'hasIcon')
+                  hash:        plug_definition.dig('hash').to_s,
+                  name:        plug_definition.dig('displayProperties', 'name'),
+                  description: plug_definition.dig('displayProperties', 'description'),
+                  icon:        plug_definition.dig('displayProperties', 'icon'),
+                  has_icon:    plug_definition.dig('displayProperties', 'hasIcon')
                 }
 
               when /v400\.plugs\.(weapons|armor)\.masterworks\./
-                affected_stat = plug_item.dig('investmentStats')&.first
+                affected_stat = plug_definition.dig('investmentStats')&.first
                 stat_details  = @manifest.lookup_stat(affected_stat&.dig('statTypeHash'))
 
                 damage_resistance_type = case stat_details&.dig('displayProperties', 'name')
@@ -366,22 +365,45 @@ class BungieApi
                     DAMAGE_TYPES[:Void]
                   else
                     nil
-                  end
+                end
 
                 damage_resistance_type = (DAMAGE_TYPES.key(damage_resistance_type) || 'Unknown').to_s if damage_resistance_type
 
 
                 item_details[:masterwork] = {
-                  hash:                   plug_item.dig('hash').to_s,
-                  name:                   plug_item.dig('displayProperties', 'name'),
-                  description:            plug_item.dig('displayProperties', 'description'),
-                  icon:                   plug_item.dig('displayProperties', 'icon'),
-                  has_icon:               plug_item.dig('displayProperties', 'hasIcon'),
+                  hash:                   plug_definition.dig('hash').to_s,
+                  name:                   plug_definition.dig('displayProperties', 'name'),
+                  description:            plug_definition.dig('displayProperties', 'description'),
+                  icon:                   plug_definition.dig('displayProperties', 'icon'),
+                  has_icon:               plug_definition.dig('displayProperties', 'hasIcon'),
                   affected_stat:          stat_details&.dig('displayProperties', 'name'),
                   value:                  affected_stat&.dig('value'),
                   damage_resistance_type: damage_resistance_type
                 }
 
+              #, 'v300.plugs.masterworks.generic.weapons.kills', 'v300.plugs.masterworks.generic.weapons.kills_pvp'
+              when /v300\.plugs\.masterworks\./
+                socket_instance&.dig('plugObjectives')
+                  &.select { |objective| objective&.dig('visible') }
+                  &.each do |objective|
+                  objective_definition = @manifest.lookup_objective(objective&.dig('objectiveHash'))
+
+                  # If the kill counter is active, add it to the item as a whole
+                  if objective&.dig('complete')
+                    item_details[:objectives] += [{
+                      label: objective_definition&.dig('progressDescription'),
+                      value: objective&.dig('progress')
+                    }]
+                  end
+                end
+
+                item_details[:masterwork] = {
+                  hash:        plug_definition.dig('hash').to_s,
+                  name:        plug_definition.dig('displayProperties', 'name'),
+                  description: plug_definition.dig('displayProperties', 'description'),
+                  icon:        plug_definition.dig('displayProperties', 'icon'),
+                  has_icon:    plug_definition.dig('displayProperties', 'hasIcon'),
+                }
             end
         end
       end

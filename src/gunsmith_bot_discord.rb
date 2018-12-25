@@ -164,9 +164,17 @@ HELP
 
 
     # Masterwork / Mod
+    masterwork = 'n/a'
+    if results[:item][:masterwork]
+      if results&.dig(:item, :masterwork, :affected_stat)
+        masterwork = "#{results[:item][:masterwork][:affected_stat]} - #{results[:item][:masterwork][:value]}"
+      else
+        masterwork = 'Yes'
+      end
+    end
     attachment_fields.push({
                              title: 'Masterwork',
-                             value: results[:item][:masterwork] ? "#{results[:item][:masterwork][:affected_stat]} - #{results[:item][:masterwork][:value]}" : 'n/a',
+                             value: masterwork,
                              short: true
                            })
 
