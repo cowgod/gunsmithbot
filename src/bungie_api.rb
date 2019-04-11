@@ -476,11 +476,11 @@ class BungieApi
         ITEM_BUCKET_IDS[:GHOST]
       when 'head', 'helmet', 'helm', 'mask', 'hat'
         ITEM_BUCKET_IDS[:HEAD]
-      when 'arm', 'arms', 'gloves', 'gauntlets', 'hands'
+      when 'arm', 'arms', 'glove', 'gloves', 'gauntlet', 'gauntlets', 'hand', 'hands'
         ITEM_BUCKET_IDS[:ARMS]
       when 'chest'
         ITEM_BUCKET_IDS[:CHEST]
-      when 'leg', 'legs', 'boots', 'greaves', 'pants'
+      when 'leg', 'legs', 'boot', 'boots', 'greaves', 'pant', 'pants'
         ITEM_BUCKET_IDS[:LEGS]
       when 'class', 'mark', 'bond', 'cape', 'cloak', 'towel'
         ITEM_BUCKET_IDS[:CLASS_ITEM]
@@ -488,7 +488,7 @@ class BungieApi
         ITEM_BUCKET_IDS[:SHIP]
       when 'sparrow'
         ITEM_BUCKET_IDS[:SPARROW]
-      when 'emblem'
+      when 'emblem', 'brag', 'humblebrag'
         ITEM_BUCKET_IDS[:EMBLEM]
       else
         nil
