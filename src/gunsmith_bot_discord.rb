@@ -18,7 +18,7 @@ class GunsmithBotDiscord < Discordrb::Bot
     raise 'DISCORD_API_KEY not set' unless ENV['DISCORD_API_TOKEN'].present?
 
     @prefix = prefix
-    @bot    = Discordrb::Commands::CommandBot.new token: ENV['DISCORD_API_TOKEN'], prefix: @prefix, name: BOT_NAME, client_id:
+    @bot    = Discordrb::Commands::CommandBot.new token: ENV['DISCORD_API_TOKEN'], prefix: @prefix, name: BOT_NAME, client_id: DISCORD_CLIENT_ID
 
 
     # Here we output the invite URL to the console so the bot account can be invited to the channel. This only has to be
