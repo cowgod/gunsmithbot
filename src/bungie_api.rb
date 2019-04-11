@@ -474,7 +474,7 @@ class BungieApi
         ITEM_BUCKET_IDS[:HEAVY_WEAPON]
       when 'ghost'
         ITEM_BUCKET_IDS[:GHOST]
-      when 'head', 'helmet', 'helm'
+      when 'head', 'helmet', 'helm', 'mask', 'hat'
         ITEM_BUCKET_IDS[:HEAD]
       when 'arm', 'arms', 'gloves', 'gauntlets', 'hands'
         ITEM_BUCKET_IDS[:ARMS]
