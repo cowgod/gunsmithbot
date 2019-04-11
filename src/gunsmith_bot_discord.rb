@@ -8,22 +8,23 @@ require 'pp'
 
 
 class GunsmithBotDiscord < Discordrb::Bot
-  BOT_NAME     = 'Banshee-44'.freeze
-  BOT_ICON_URL = 'http://binrock.net/banshee44.png'.freeze
-  BOT_USERNAME = (ENV['GUNSMITH_BOT_USERNAME'] || 'gunsmithbot')
+  DISCORD_CLIENT_ID = 496066614614294529
+  BOT_NAME          = 'Banshee-44'.freeze
+  BOT_ICON_URL      = 'http://binrock.net/banshee44.png'.freeze
+  BOT_USERNAME      = (ENV['GUNSMITH_BOT_USERNAME'] || 'gunsmithbot')
 
 
   def initialize(prefix: '!')
     raise 'DISCORD_API_KEY not set' unless ENV['DISCORD_API_TOKEN'].present?
 
     @prefix = prefix
-    @bot    = Discordrb::Commands::CommandBot.new token: ENV['DISCORD_API_TOKEN'], prefix: @prefix, name: BOT_NAME
+    @bot    = Discordrb::Commands::CommandBot.new token: ENV['DISCORD_API_TOKEN'], prefix: @prefix, name: BOT_NAME, client_id:
 
 
     # Here we output the invite URL to the console so the bot account can be invited to the channel. This only has to be
     # done once, afterwards, you can remove this part if you want
-    # puts "This bot's invite URL is #{@bot.invite_url}."
-    # puts 'Click on it to invite it to your server.'
+    puts "This bot's invite URL is #{@bot.invite_url}"
+    puts 'Click on it to invite it to your server.'
 
     # @bot.message(with_text: 'Ping!') do |event|
     #   event.respond 'Pong!'
@@ -324,7 +325,7 @@ HELP
 
     attachments.each do |attachment|
       event&.channel&.send_embed do |embed|
-        embed.title       = attachment[:title]
+        embed.title = attachment[:title]
         # embed.description = attachment_text
         embed.color     = BungieApi.get_hex_color_for_damage_type(attachment[:color])
         embed.url       = attachment[:title_link]
