@@ -7,6 +7,7 @@ require_relative '../lib/monkey_patches'
 require 'pp'
 
 
+# Wrapper for GunsmithBot class, to adapt it to usage in Discord
 class GunsmithBotDiscord < Discordrb::Bot
   DISCORD_CLIENT_ID = 496066614614294529
   BOT_NAME          = 'Banshee-44'.freeze
@@ -59,48 +60,48 @@ HELP
 
       begin
         case args.length
-          when 1
-            # If they didn't provide a gamertag, use the first name of the Slack
-            # user. If it's not set, use their title ("What I do")
+        when 1
+          # If they didn't provide a gamertag, use the first name of the Slack
+          # user. If it's not set, use their title ("What I do")
 
-            # TODO - figure out what field we can use in Discord for this
-            # requested_gamertag = client.store.users[data.user][:profile][:title] || client.store.users[data.user][:name]
-            requested_gamertag = event.user.name
-            requested_platform = nil
-            requested_slot     = args[0]
-          when 2
-            requested_gamertag = args[0]
-            requested_platform = nil
-            requested_slot     = args[1]
-          when 3
-            requested_gamertag = args[0]
-            requested_platform = args[1]
-            requested_slot     = args[2]
-          else
-            raise QueryError, 'Wrong number of arguments.'
+          # TODO - figure out what field we can use in Discord for this
+          # requested_gamertag = client.store.users[data.user][:profile][:title] || client.store.users[data.user][:name]
+          requested_gamertag = event.user.name
+          requested_platform = nil
+          requested_slot     = args[0]
+        when 2
+          requested_gamertag = args[0]
+          requested_platform = nil
+          requested_slot     = args[1]
+        when 3
+          requested_gamertag = args[0]
+          requested_platform = args[1]
+          requested_slot     = args[2]
+        else
+          raise QueryError, 'Wrong number of arguments.'
         end
 
 
         case requested_slot.strip.downcase
-          when 'loadout', 'weapons', 'weapon', 'guns', 'gun', 'armor'
-            case requested_slot.strip.downcase
-              when 'weapons', 'weapon', 'guns', 'gun'
-                loadout_type = :weapons
-              when 'armor'
-                loadout_type = :armor
-              else
-                loadout_type = :full
-            end
-
-            results = $gunsmith_bot.query_loadout(requested_gamertag, requested_platform, loadout_type)
-            break if results.blank?
-
-            loadout_response(event, results, loadout_type)
+        when 'loadout', 'weapons', 'weapon', 'guns', 'gun', 'armor'
+          case requested_slot.strip.downcase
+          when 'weapons', 'weapon', 'guns', 'gun'
+            loadout_type = :weapons
+          when 'armor'
+            loadout_type = :armor
           else
-            results = $gunsmith_bot.query(requested_gamertag, requested_platform, requested_slot)
-            break if results.blank?
+            loadout_type = :full
+          end
 
-            single_slot_response(event, results)
+          results = $gunsmith_bot.query_loadout(requested_gamertag, requested_platform, loadout_type)
+          break if results.blank?
+
+          loadout_response(event, results, loadout_type)
+        else
+          results = $gunsmith_bot.query(requested_gamertag, requested_platform, requested_slot)
+          break if results.blank?
+
+          single_slot_response(event, results)
         end
       rescue QueryError => message
         print_usage(event: event, additional_message: message)
@@ -228,12 +229,12 @@ HELP
     # Prepare output
 
     case type
-      when :weapons
-        canonical_loadout_type = 'weapons'
-      when :armor
-        canonical_loadout_type = 'armor'
-      else
-        canonical_loadout_type = 'loadout'
+    when :weapons
+      canonical_loadout_type = 'weapons'
+    when :armor
+      canonical_loadout_type = 'armor'
+    else
+      canonical_loadout_type = 'loadout'
     end
 
     message_text = "<@#{event&.user&.id}>: "

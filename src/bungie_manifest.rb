@@ -1,12 +1,13 @@
-require 'json'
+# frozen_string_literal: true
 
+require 'json'
 
 class BungieManifest
   def initialize(manifest_url)
     raise 'Invalid Manifest URL provided' unless manifest_url
+
     load_manifest(manifest_url)
   end
-
 
   def lookup_item(hash)
     lookup_item_in_table('DestinyInventoryItemDefinition', hash)
@@ -28,16 +29,15 @@ class BungieManifest
     lookup_item_in_table('DestinyObjectiveDefinition', hash)
   end
 
-
   private
 
   def load_manifest(manifest_url)
     print 'Downloading Manifest... '
 
-    manifest_zipfile = Tempfile.new('manifest_zip')
+    manifest_zipfile = Tempfile.new('manifest_zip', encoding: 'ascii-8bit')
     manifest_zipfile.write HTTParty.get(manifest_url).body
 
-    manifest_db_file = Tempfile.new('manifest_db')
+    manifest_db_file = Tempfile.new('manifest_db', encoding: 'ascii-8bit')
 
     Zip::File.open_buffer(manifest_zipfile) do |zip_file|
       entry = zip_file.glob('world_sql_content_*').first
@@ -46,12 +46,10 @@ class BungieManifest
 
     puts 'Done.'
 
-
     print 'Opening DB connection to local manifest... '
     @manifest = SQLite3::Database.open manifest_db_file.path
     puts 'Done.'
   end
-
 
   def lookup_item_in_table(table_name, id)
     # CASE
@@ -74,5 +72,3 @@ SQL
     json ? JSON.parse(json) : nil
   end
 end
-
-

@@ -1,17 +1,32 @@
+# frozen_string_literal: true
+
 require_relative 'bungie_api'
 require_relative 'trials_report_api'
 
 require_relative 'query_error'
 
+require 'mysql2'
 require 'pp'
 
-
+# The core class representing the bot's main interface
 class GunsmithBot
   def initialize
-    raise 'BUNGIE_API_KEY not set' unless ENV['BUNGIE_API_TOKEN']
+    %w[BUNGIE_API_TOKEN GUNSMITH_DB_HOST GUNSMITH_DB_USER GUNSMITH_DB_PASS GUNSMITH_DB_NAME].each do |var_name|
+      raise "Environment variable '#{var_name}' not set" unless ENV[var_name]
+    end
+
+    # this takes a hash of options, almost all of which map directly
+    # to the familiar database.yml in rails
+    # See http://api.rubyonrails.org/classes/ActiveRecord/ConnectionAdapters/Mysql2Adapter.html
+    @db_conn = Mysql2::Client.new(
+      host:     ENV['GUNSMITH_DB_HOST'],
+      username: ENV['GUNSMITH_DB_USER'],
+      password: ENV['GUNSMITH_DB_PASS'],
+      database: ENV['GUNSMITH_DB_NAME']
+    )
+
     @bungie_api = BungieApi.new(ENV['BUNGIE_API_TOKEN'])
   end
-
 
   def query_user_and_platform(requested_gamertag, requested_platform)
     results = { gamertag_suggestions: [] }
@@ -34,7 +49,6 @@ class GunsmithBot
     results
   end
 
-
   def query_slot(requested_slot)
     results = {}
 
@@ -46,7 +60,6 @@ class GunsmithBot
     results
   end
 
-
   def query(requested_gamertag, requested_platform, requested_slot)
     results = {}
 
@@ -56,7 +69,6 @@ class GunsmithBot
 
     slot_results = query_slot(requested_slot)
     results.merge!(slot_results)
-
 
     character = @bungie_api.active_char_with_equipment(user_info['membershipType'], user_info['membershipId'])
     raise QueryError, "Couldn't find the most recently used character for the requested user." unless character
@@ -70,15 +82,14 @@ class GunsmithBot
     results
   end
 
-
   def self.slots_for_loadout_type(type = :full)
     case type.to_sym
-      when :weapons
-        %i[KINETIC_WEAPON ENERGY_WEAPON HEAVY_WEAPON GHOST SUBCLASS]
-      when :armor
-        %i[HEAD ARMS CHEST LEGS CLASS_ITEM GHOST SUBCLASS]
-      else
-        %i[KINETIC_WEAPON ENERGY_WEAPON HEAVY_WEAPON HEAD ARMS CHEST LEGS CLASS_ITEM GHOST SUBCLASS]
+    when :weapons
+      %i[KINETIC_WEAPON ENERGY_WEAPON HEAVY_WEAPON GHOST SUBCLASS]
+    when :armor
+      %i[HEAD ARMS CHEST LEGS CLASS_ITEM GHOST SUBCLASS]
+    else
+      %i[KINETIC_WEAPON ENERGY_WEAPON HEAVY_WEAPON HEAD ARMS CHEST LEGS CLASS_ITEM GHOST SUBCLASS]
     end
   end
 
@@ -89,10 +100,8 @@ class GunsmithBot
     user_info    = user_results.dig(:user_info)
     results.merge!(user_results)
 
-
     character = @bungie_api.active_char_with_equipment(user_info['membershipType'], user_info['membershipId'])
     raise QueryError, "Couldn't find the most recently used character for the requested user." unless character
-
 
     results[:slots] = {}
 
@@ -113,4 +122,3 @@ class GunsmithBot
     results
   end
 end
-

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'httparty'
 require 'uri'
 require 'time'
@@ -7,118 +9,184 @@ require 'zip'
 
 require_relative 'bungie_manifest'
 
-
 require 'pp'
 
-
+# Class to encapsulate communication with the Bungie Destiny 2 API
 class BungieApi
   include HTTParty
   base_uri 'https://www.bungie.net/Platform/'
 
+  COMPONENTS = {
+    None:                  0,
 
-  COMPONENTS       = {
-    None: 0,
+    # Profiles is the most basic component, only relevant when calling
+    # GetProfile. This returns basic information about the profile, which is
+    # almost nothing: a list of characterIds, some information about the last
+    # time you logged in, and that most sobering statistic: how long you've
+    # played.
+    Profiles:              100,
 
-    # Profiles is the most basic component, only relevant when calling GetProfile. This returns basic information about the profile, which is almost nothing: a list of characterIds, some information about the last time you logged in, and that most sobering statistic: how long you've played.
-    Profiles: 100,
+    # Only applicable for GetProfile, this will return information about
+    # receipts for refundable vendor items.
+    VendorReceipts:        101,
 
-    # Only applicable for GetProfile, this will return information about receipts for refundable vendor items.
-    VendorReceipts: 101,
+    # Asking for this will get you the profile-level inventories, such as your
+    # Vault buckets (yeah, the Vault is really inventory buckets located on your
+    # Profile)
+    ProfileInventories:    102,
 
-    # Asking for this will get you the profile-level inventories, such as your Vault buckets (yeah, the Vault is really inventory buckets located on your Profile)
-    ProfileInventories: 102,
+    # This will get you a summary of items on your Profile that we consider to
+    # be "currencies", such as Glimmer. I mean, if there's Glimmer in Destiny 2.
+    # I didn't say there was Glimmer.
+    ProfileCurrencies:     103,
 
-    # This will get you a summary of items on your Profile that we consider to be "currencies", such as Glimmer. I mean, if there's Glimmer in Destiny 2. I didn't say there was Glimmer.
-    ProfileCurrencies: 103,
+    # This will get you any progression-related information that exists on a
+    # Profile-wide level, across all characters.
+    ProfileProgression:    104,
 
-    # This will get you any progression-related information that exists on a Profile-wide level, across all characters.
-    ProfileProgression: 104,
+    # This will get you summary info about each of the characters in the
+    # profile.
+    Characters:            200,
 
-    # This will get you summary info about each of the characters in the profile.
-    Characters: 200,
+    # This will get you information about any non-equipped items on the
+    # character or character(s) in question, if you're allowed to see it. You
+    # have to either be authenticated as that user, or that user must allow
+    # anonymous viewing of their non-equipped items in Bungie.Net settings to
+    # actually get results.
+    CharacterInventories:  201,
 
-    # This will get you information about any non-equipped items on the character or character(s) in question, if you're allowed to see it. You have to either be authenticated as that user, or that user must allow anonymous viewing of their non-equipped items in Bungie.Net settings to actually get results.
-    CharacterInventories: 201,
-
-    # This will get you information about the progression (faction, experience, etc... "levels") relevant to each character, if you are the currently authenticated user or the user has elected to allow anonymous viewing of its progression info.
+    # This will get you information about the progression (faction, experience,
+    # etc... "levels") relevant to each character, if you are the currently
+    # authenticated user or the user has elected to allow anonymous viewing of
+    # its progression info.
     CharacterProgressions: 202,
 
-    # This will get you just enough information to be able to render the character in 3D if you have written a 3D rendering library for Destiny Characters, or "borrowed" ours. It's okay, I won't tell anyone if you're using it. I'm no snitch. (actually, we don't care if you use it - go to town)
-    CharacterRenderData: 203,
+    # This will get you just enough information to be able to render the
+    # character in 3D if you have written a 3D rendering library for Destiny
+    # Characters, or "borrowed" ours. It's okay, I won't tell anyone if you're
+    # using it. I'm no snitch. (actually, we don't care if you use it - go to
+    # town)
+    CharacterRenderData:   203,
 
-    # This will return info about activities that a user can see and gating on it, if you are the currently authenticated user or the user has elected to allow anonymous viewing of its progression info. Note that the data returned by this can be unfortunately problematic and relatively unreliable in some cases. We'll eventually work on making it more consistently reliable.
-    CharacterActivities: 204,
+    # This will return info about activities that a user can see and gating on
+    # it, if you are the currently authenticated user or the user has elected
+    # to allow anonymous viewing of its progression info. Note that the data
+    # returned by this can be unfortunately problematic and relatively
+    # unreliable in some cases. We'll eventually work on making it more
+    # consistently reliable.
+    CharacterActivities:   204,
 
-    # This will return info about the equipped items on the character(s). Everyone can see this.
-    CharacterEquipment: 205,
+    # This will return info about the equipped items on the character(s).
+    # Everyone can see this.
+    CharacterEquipment:    205,
 
-    # This will return basic info about instanced items - whether they can be equipped, their tracked status, and some info commonly needed in many places (current damage type, primary stat value, etc)
-    ItemInstances: 300,
+    # This will return basic info about instanced items - whether they can be
+    # equipped, their tracked status, and some info commonly needed in many
+    # places (current damage type, primary stat value, etc)
+    ItemInstances:         300,
 
-    # Items can have Objectives (DestinyObjectiveDefinition) bound to them. If they do, this will return info for items that have such bound objectives.
-    ItemObjectives: 301,
+    # Items can have Objectives (DestinyObjectiveDefinition) bound to them. If
+    # they do, this will return info for items that have such bound objectives.
+    ItemObjectives:        301,
 
-    # Items can have perks (DestinyPerkDefinition). If they do, this will return info for what perks are active on items.
-    ItemPerks: 302,
+    # Items can have perks (DestinyPerkDefinition). If they do, this will return
+    # info for what perks are active on items.
+    ItemPerks:             302,
 
-    # If you just want to render the weapon, this is just enough info to do that rendering.
-    ItemRenderData: 303,
+    # If you just want to render the weapon, this is just enough info to do that
+    # rendering.
+    ItemRenderData:        303,
 
-    # Items can have stats, like rate of fire. Asking for this component will return requested item's stats if they have stats.
-    ItemStats: 304,
+    # Items can have stats, like rate of fire. Asking for this component will
+    # return requested item's stats if they have stats.
+    ItemStats:             304,
 
-    # Items can have sockets, where plugs can be inserted. Asking for this component will return all info relevant to the sockets on items that have them.
-    ItemSockets: 305,
+    # Items can have sockets, where plugs can be inserted. Asking for this
+    # component will return all info relevant to the sockets on items that have
+    # them.
+    ItemSockets:           305,
 
-    # Items can have talent grids, though that matters a lot less frequently than it used to. Asking for this component will return all relevant info about activated Nodes and Steps on this talent grid, like the good ol' days.
-    ItemTalentGrids: 306,
+    # Items can have talent grids, though that matters a lot less frequently
+    # than it used to. Asking for this component will return all relevant info
+    # about activated Nodes and Steps on this talent grid, like the good ol'
+    # days.
+    ItemTalentGrids:       306,
 
-    # Items that *aren't* instanced still have important information you need to know: how much of it you have, the itemHash so you can look up their DestinyInventoryItemDefinition, whether they're locked, etc... Both instanced and non-instanced items will have these properties. You will get this automatically with Inventory components - you only need to pass this when calling GetItem on a specific item.
-    ItemCommonData: 307,
+    # Items that *aren't* instanced still have important information you need
+    # to know: how much of it you have, the itemHash so you can look up their
+    # DestinyInventoryItemDefinition, whether they're locked, etc... Both
+    # instanced and non-instanced items will have these properties. You will
+    # get this automatically with Inventory components - you only need to pass
+    # this when calling GetItem on a specific item.
+    ItemCommonData:        307,
 
-    # Items that are "Plugs" can be inserted into sockets. This returns statuses about those plugs and why they can/can't be inserted. I hear you giggling, there's nothing funny about inserting plugs. Get your head out of the gutter and pay attention!
-    ItemPlugStates: 308,
+    # Items that are "Plugs" can be inserted into sockets. This returns statuses
+    # about those plugs and why they can/can't be inserted. I hear you giggling,
+    # there's nothing funny about inserting plugs. Get your head out of the
+    # gutter and pay attention!
+    ItemPlugStates:        308,
 
-    # When obtaining vendor information, this will return summary information about the Vendor or Vendors being returned.
-    Vendors: 400,
+    # When obtaining vendor information, this will return summary information
+    # about the Vendor or Vendors being returned.
+    Vendors:               400,
 
-    # When obtaining vendor information, this will return information about the categories of items provided by the Vendor.
-    VendorCategories: 401,
+    # When obtaining vendor information, this will return information about the
+    # categories of items provided by the Vendor.
+    VendorCategories:      401,
 
-    # When obtaining vendor information, this will return the information about items being sold by the Vendor.
-    VendorSales: 402,
+    # When obtaining vendor information, this will return the information about
+    # items being sold by the Vendor.
+    VendorSales:           402,
 
-    # Asking for this component will return you the account's Kiosk statuses: that is, what items have been filled out/acquired. But only if you are the currently authenticated user or the user has elected to allow anonymous viewing of its progression info.
-    Kiosks: 500,
+    # Asking for this component will return you the account's Kiosk statuses:
+    # that is, what items have been filled out/acquired. But only if you are
+    # the currently authenticated user or the user has elected to allow
+    # anonymous viewing of its progression info.
+    Kiosks:                500,
 
-    # A "shortcut" component that will give you all of the item hashes/quantities of items that the requested character can use to determine if an action (purchasing, socket insertion) has the required currency. (recall that all currencies are just items, and that some vendor purchases require items that you might not traditionally consider to be a "currency", like plugs/mods!)
-    CurrencyLookups: 600,
+    # A "shortcut" component that will give you all of the item
+    # hashes/quantities of items that the requested character can use to
+    # determine if an action (purchasing, socket insertion) has the required
+    # currency. (recall that all currencies are just items, and that some vendor
+    # purchases require items that you might not traditionally consider to be a
+    # "currency", like plugs/mods!)
+    CurrencyLookups:       600,
 
-    # Returns summary status information about all "Presentation Nodes". See DestinyPresentationNodeDefinition for more details, but the gist is that these are entities used by the game UI to bucket Collectibles and Records into a hierarchy of categories. You may ask for and use this data if you want to perform similar bucketing in your own UI: or you can skip it and roll your own.
-    PresentationNodes: 700,
+    # Returns summary status information about all "Presentation Nodes". See
+    # DestinyPresentationNodeDefinition for more details, but the gist is that
+    # these are entities used by the game UI to bucket Collectibles and Records
+    # into a hierarchy of categories. You may ask for and use this data if you
+    # want to perform similar bucketing in your own UI: or you can skip it and
+    # roll your own.
+    PresentationNodes:     700,
 
-    # Returns summary status information about all "Collectibles". These are records of what items you've discovered while playing Destiny, and some other basic information. For detailed information, you will have to call a separate endpoint devoted to the purpose.
-    Collectibles: 800,
+    # Returns summary status information about all "Collectibles". These are
+    # records of what items you've discovered while playing Destiny, and some
+    # other basic information. For detailed information, you will have to call
+    # a separate endpoint devoted to the purpose.
+    Collectibles:          800,
 
-    # Returns summary status information about all "Records" (also known in the game as "Triumphs". I know, it's confusing because there's also "Moments of Triumph" that will themselves be represented as "Triumphs.")
-    Records: 900,
+    # Returns summary status information about all "Records" (also known in the
+    # game as "Triumphs". I know, it's confusing because there's also "Moments
+    # of Triumph" that will themselves be represented as "Triumphs.")
+    Records:               900
   }.freeze
-  ITEM_BUCKET_IDS  = {
-    KINETIC_WEAPON: 1498876634,
-    ENERGY_WEAPON:  2465295065,
-    HEAVY_WEAPON:   953998645,
-    GHOST:          4023194814,
-    HEAD:           3448274439,
-    ARMS:           3551918588,
-    CHEST:          14239492,
-    LEGS:           20886954,
-    CLASS_ITEM:     1585787867,
-    SHIP:           284967655,
-    SPARROW:        2025709351,
-    EMBLEM:         4274335291,
+  ITEM_BUCKET_IDS = {
+    KINETIC_WEAPON: '1498876634',
+    ENERGY_WEAPON:  '2465295065',
+    HEAVY_WEAPON:   '953998645',
+    GHOST:          '4023194814',
+    HEAD:           '3448274439',
+    ARMS:           '3551918588',
+    CHEST:          '14239492',
+    LEGS:           '20886954',
+    CLASS_ITEM:     '1585787867',
+    SHIP:           '284967655',
+    SPARROW:        '2025709351',
+    EMBLEM:         '4274335291',
 
-    CLAN_BANNER:    4292445962,
-    SUBCLASS:       3284755031,
+    CLAN_BANNER:    '4292445962',
+    SUBCLASS:       '3284755031'
   }.freeze
   MEMBERSHIP_TYPES = {
     None:          0,
@@ -129,27 +197,27 @@ class BungieApi
     BungieNext:    254,
     All:           -1
   }.freeze
-  DAMAGE_TYPES     = {
+  DAMAGE_TYPES = {
     None:    0,
     Kinetic: 1,
     Arc:     2,
     Thermal: 3,
     Void:    4,
-    Raid:    5,
+    Raid:    5
   }.freeze
 
   # The value of the uiCategoryStyle for socketCategories that we want to
   # display (this corresponds to 'WEAPON PERKS' and 'ARMOR PERKS')
   SOCKET_CATEGORY_IDS = {
-    weapon_perks:      4241085061,
-    weapon_mods:       2685412949,
-    armor_perks:       2518356196,
-    armor_mods:        590099826,
-    ghost_shell_perks: 3301318876,
-    ghost_shell_mods:  3379164649,
-    vehicle_perks:     2278110604,
-    vehicle_mods_1:    4243480345,
-    vehicle_mods_2:    4265082475,
+    weapon_perks:      '4241085061',
+    weapon_mods:       '2685412949',
+    armor_perks:       '2518356196',
+    armor_mods:        '590099826',
+    ghost_shell_perks: '3301318876',
+    ghost_shell_mods:  '3379164649',
+    vehicle_perks:     '2278110604',
+    vehicle_mods_1:    '4243480345',
+    vehicle_mods_2:    '4265082475'
   }.freeze
 
   # Used in formatting the attachment
@@ -159,7 +227,6 @@ class BungieApi
     thermal: '#e68a00',
     void:    '#400080'
   }.freeze
-
 
   def initialize(api_key)
     puts 'Initializing Bungie API... Done.'
@@ -174,7 +241,7 @@ class BungieApi
     url      = "/Destiny2/SearchDestinyPlayer/#{URI.escape(membership_type_id.to_s)}/#{URI.escape(requested_gamertag.to_s)}/"
     response = self.class.get(url, @options)
 
-    user = response ? response&.parsed_response&.dig('Response', 0) : nil
+    user = response ? response.parsed_response&.dig('Response', 0) : nil
 
     unless user
       # Try again after replacing underscores with spaces, for XBox GamerTags
@@ -228,14 +295,14 @@ class BungieApi
       @options.merge(
         query: {
           components: [
-                        COMPONENTS[:ItemInstances],
-                        COMPONENTS[:ItemPerks],
-                        COMPONENTS[:ItemStats],
+            COMPONENTS[:ItemInstances],
+            COMPONENTS[:ItemPerks],
+            COMPONENTS[:ItemStats],
 
-                        COMPONENTS[:ItemSockets],
-                        COMPONENTS[:ItemCommonData],
-                        COMPONENTS[:ItemPlugStates],
-                      ].join(',')
+            COMPONENTS[:ItemSockets],
+            COMPONENTS[:ItemCommonData],
+            COMPONENTS[:ItemPlugStates]
+          ].join(',')
         }
       )
     )
@@ -275,140 +342,135 @@ class BungieApi
         next unless socket_instance
 
         case SOCKET_CATEGORY_IDS.key(category.dig('socketCategoryHash'))
-          when :weapon_perks, :armor_perks
-            # If this socket isn't marked as visible, we can skip it
-            next unless socket_instance&.dig('isVisible')
+        when :weapon_perks, :armor_perks
+          # If this socket isn't marked as visible, we can skip it
+          next unless socket_instance&.dig('isVisible')
 
-            perk_socket = []
+          perk_socket = []
 
-            if socket_instance&.dig('reusablePlugs')
-              # If the socket supports multiple reusablePlugs, display them all, and mark which is currently selected
-              socket_instance&.dig('reusablePlugs')&.each do |plug|
-                plug_definition = @manifest.lookup_item(plug&.dig('plugItemHash'))
-                next unless plug_definition
+          if socket_instance&.dig('reusablePlugs')
+            # If the socket supports multiple reusablePlugs, display them all, and mark which is currently selected
+            socket_instance&.dig('reusablePlugs')&.each do |plug|
+              plug_definition = @manifest.lookup_item(plug&.dig('plugItemHash'))
+              next unless plug_definition
 
-                plug_objectives = plug&.dig('plugObjectives')
-                  &.select { |objective| objective&.dig('visible') }
-                  &.map do |objective|
-                  objective_definition = @manifest.lookup_objective(objective&.dig('objectiveHash'))
+              plug_objectives = plug&.dig('plugObjectives')
+                &.select { |objective| objective&.dig('visible') }
+                &.map do |objective|
+                objective_definition = @manifest.lookup_objective(objective&.dig('objectiveHash'))
 
-                  {
-                    label: objective_definition&.dig('progressDescription'),
-                    value: objective&.dig('progress')
-                  }
-                end
-
-                perk = {
-                  hash:        plug_definition.dig('hash').to_s,
-                  name:        plug_definition.dig('displayProperties', 'name'),
-                  description: plug_definition.dig('displayProperties', 'description'),
-                  icon:        plug_definition.dig('displayProperties', 'icon'),
-                  has_icon:    plug_definition.dig('displayProperties', 'hasIcon'),
-                  selected:    (plug_definition.dig('hash').to_s == socket_instance&.dig('plugHash').to_s),
-                  objectives:  plug_objectives
+                {
+                  label: objective_definition&.dig('progressDescription'),
+                  value: objective&.dig('progress')
                 }
-
-                perk_socket.push perk
-
-
-                # If the perk is currently selected and it has any associated objectives, add them to the item as a whole
-                item_details[:objectives] += plug_objectives if perk[:selected] && plug_objectives.present?
               end
-            else
-              # Otherwise, just display the fixed plug that's in the socket
-              plug_definition = @manifest.lookup_item(socket_instance&.dig('plugHash'))
-              if plug_definition
-                perk = {
-                  hash:        plug_definition.dig('hash').to_s,
-                  name:        plug_definition.dig('displayProperties', 'name'),
-                  description: plug_definition.dig('displayProperties', 'description'),
-                  icon:        plug_definition.dig('displayProperties', 'icon'),
-                  has_icon:    plug_definition.dig('displayProperties', 'hasIcon'),
-                  selected:    true
-                }
 
-                perk_socket.push perk
-              end
+              perk = {
+                hash:        plug_definition.dig('hash').to_s,
+                name:        plug_definition.dig('displayProperties', 'name'),
+                description: plug_definition.dig('displayProperties', 'description'),
+                icon:        plug_definition.dig('displayProperties', 'icon'),
+                has_icon:    plug_definition.dig('displayProperties', 'hasIcon'),
+                selected:    (plug_definition.dig('hash').to_s == socket_instance&.dig('plugHash').to_s),
+                objectives:  plug_objectives
+              }
+
+              perk_socket.push perk
+
+              # If the perk is currently selected and it has any associated objectives, add them to the item as a whole
+              item_details[:objectives] += plug_objectives if perk[:selected] && plug_objectives.present?
             end
-
-            item_details[:perk_sockets].push perk_socket unless perk_socket.empty?
-
-
-          when :weapon_mods, :armor_mods
+          else
+            # Otherwise, just display the fixed plug that's in the socket
             plug_definition = @manifest.lookup_item(socket_instance&.dig('plugHash'))
-            next unless plug_definition && plug_definition&.dig('plug')
+            if plug_definition
+              perk = {
+                hash:        plug_definition.dig('hash').to_s,
+                name:        plug_definition.dig('displayProperties', 'name'),
+                description: plug_definition.dig('displayProperties', 'description'),
+                icon:        plug_definition.dig('displayProperties', 'icon'),
+                has_icon:    plug_definition.dig('displayProperties', 'hasIcon'),
+                selected:    true
+              }
 
-            case plug_definition&.dig('plug', 'plugCategoryIdentifier')
-              #v400.weapon.mod_empty
-              when /v400\.weapon\.mod_/, 'enhancements.universal'
-                next if plug_definition&.dig('displayProperties', 'name') == 'Empty Mod Socket'
-                # next unless plug_item&.dig('investmentStats')&.first
-
-                item_details[:mod] = {
-                  hash:        plug_definition.dig('hash').to_s,
-                  name:        plug_definition.dig('displayProperties', 'name'),
-                  description: plug_definition.dig('displayProperties', 'description'),
-                  icon:        plug_definition.dig('displayProperties', 'icon'),
-                  has_icon:    plug_definition.dig('displayProperties', 'hasIcon')
-                }
-
-              when /v400\.plugs\.(weapons|armor)\.masterworks\./
-                affected_stat = plug_definition.dig('investmentStats')&.first
-                stat_details  = @manifest.lookup_stat(affected_stat&.dig('statTypeHash'))
-
-                damage_resistance_type = case stat_details&.dig('displayProperties', 'name')
-                  when /Arc Damage Resistance/i
-                    DAMAGE_TYPES[:Arc]
-                  when /Solar Damage Resistance/i
-                    DAMAGE_TYPES[:Thermal]
-                  when /Void Damage Resistance/i
-                    DAMAGE_TYPES[:Void]
-                  else
-                    nil
-                end
-
-                damage_resistance_type = (DAMAGE_TYPES.key(damage_resistance_type) || 'Unknown').to_s if damage_resistance_type
-
-
-                item_details[:masterwork] = {
-                  hash:                   plug_definition.dig('hash').to_s,
-                  name:                   plug_definition.dig('displayProperties', 'name'),
-                  description:            plug_definition.dig('displayProperties', 'description'),
-                  icon:                   plug_definition.dig('displayProperties', 'icon'),
-                  has_icon:               plug_definition.dig('displayProperties', 'hasIcon'),
-                  affected_stat:          stat_details&.dig('displayProperties', 'name'),
-                  value:                  affected_stat&.dig('value'),
-                  damage_resistance_type: damage_resistance_type
-                }
-
-              #, 'v300.plugs.masterworks.generic.weapons.kills', 'v300.plugs.masterworks.generic.weapons.kills_pvp'
-              when /v300\.plugs\.masterworks\./
-                socket_instance&.dig('plugObjectives')
-                  &.select { |objective| objective&.dig('visible') }
-                  &.each do |objective|
-                  objective_definition = @manifest.lookup_objective(objective&.dig('objectiveHash'))
-
-                  # If the kill counter is active, add it to the item as a whole
-                  if objective&.dig('complete')
-                    item_details[:objectives] += [{
-                      label: objective_definition&.dig('progressDescription'),
-                      value: objective&.dig('progress')
-                    }]
-                  end
-                end
-
-                item_details[:masterwork] = {
-                  hash:        plug_definition.dig('hash').to_s,
-                  name:        plug_definition.dig('displayProperties', 'name'),
-                  description: plug_definition.dig('displayProperties', 'description'),
-                  icon:        plug_definition.dig('displayProperties', 'icon'),
-                  has_icon:    plug_definition.dig('displayProperties', 'hasIcon'),
-                }
+              perk_socket.push perk
             end
+          end
+
+          item_details[:perk_sockets].push perk_socket unless perk_socket.empty?
+
+        when :weapon_mods, :armor_mods
+          plug_definition = @manifest.lookup_item(socket_instance&.dig('plugHash'))
+          next unless plug_definition && plug_definition&.dig('plug')
+
+          case plug_definition&.dig('plug', 'plugCategoryIdentifier')
+            # v400.weapon.mod_empty
+          when /v400\.weapon\.mod_/, 'enhancements.universal'
+            next if plug_definition&.dig('displayProperties', 'name') == 'Empty Mod Socket'
+
+            # next unless plug_item&.dig('investmentStats')&.first
+
+            item_details[:mod] = {
+              hash:        plug_definition.dig('hash').to_s,
+              name:        plug_definition.dig('displayProperties', 'name'),
+              description: plug_definition.dig('displayProperties', 'description'),
+              icon:        plug_definition.dig('displayProperties', 'icon'),
+              has_icon:    plug_definition.dig('displayProperties', 'hasIcon')
+            }
+
+          when /v400\.plugs\.(weapons|armor)\.masterworks\./
+            affected_stat = plug_definition.dig('investmentStats')&.first
+            stat_details  = @manifest.lookup_stat(affected_stat&.dig('statTypeHash'))
+
+            damage_resistance_type = case stat_details&.dig('displayProperties', 'name')
+                                     when /Arc Damage Resistance/i
+                                       DAMAGE_TYPES[:Arc]
+                                     when /Solar Damage Resistance/i
+                                       DAMAGE_TYPES[:Thermal]
+                                     when /Void Damage Resistance/i
+                                       DAMAGE_TYPES[:Void]
+            end
+
+            damage_resistance_type = (DAMAGE_TYPES.key(damage_resistance_type) || 'Unknown').to_s if damage_resistance_type
+
+            item_details[:masterwork] = {
+              hash:                   plug_definition.dig('hash').to_s,
+              name:                   plug_definition.dig('displayProperties', 'name'),
+              description:            plug_definition.dig('displayProperties', 'description'),
+              icon:                   plug_definition.dig('displayProperties', 'icon'),
+              has_icon:               plug_definition.dig('displayProperties', 'hasIcon'),
+              affected_stat:          stat_details&.dig('displayProperties', 'name'),
+              value:                  affected_stat&.dig('value'),
+              damage_resistance_type: damage_resistance_type
+            }
+
+            # , 'v300.plugs.masterworks.generic.weapons.kills', 'v300.plugs.masterworks.generic.weapons.kills_pvp'
+          when /v300\.plugs\.masterworks\./
+            socket_instance&.dig('plugObjectives')
+              &.select { |objective| objective&.dig('visible') }
+              &.each do |objective|
+              objective_definition = @manifest.lookup_objective(objective&.dig('objectiveHash'))
+
+              # If the kill counter is active, add it to the item as a whole
+              if objective&.dig('complete')
+                item_details[:objectives] += [{
+                  label: objective_definition&.dig('progressDescription'),
+                  value: objective&.dig('progress')
+                }]
+              end
+            end
+
+            item_details[:masterwork] = {
+              hash:        plug_definition.dig('hash').to_s,
+              name:        plug_definition.dig('displayProperties', 'name'),
+              description: plug_definition.dig('displayProperties', 'description'),
+              icon:        plug_definition.dig('displayProperties', 'icon'),
+              has_icon:    plug_definition.dig('displayProperties', 'hasIcon')
+            }
+          end
         end
       end
     end
-
 
     item_details[:stats] = []
 
@@ -429,34 +491,28 @@ class BungieApi
       )
     end
 
-
     item_details
   end
 
-
   def self.get_membership_type_id(membership_type)
     case membership_type.to_s.strip.downcase
-      when 'playstation', 'ps4', 'ps3', 'ps'
-        MEMBERSHIP_TYPES[:TigerPsn]
-      when 'xbox', 'xb1', 'xb'
-        MEMBERSHIP_TYPES[:TigerXbox]
-      when 'battlenet', 'bnet', 'blizzard', 'blizard', 'pc'
-        MEMBERSHIP_TYPES[:TigerBlizzard]
-      else
-        nil
+    when 'playstation', 'ps4', 'ps3', 'ps'
+      MEMBERSHIP_TYPES[:TigerPsn]
+    when 'xbox', 'xb1', 'xb'
+      MEMBERSHIP_TYPES[:TigerXbox]
+    when 'battlenet', 'bnet', 'blizzard', 'blizard', 'pc'
+      MEMBERSHIP_TYPES[:TigerBlizzard]
     end
   end
 
   def self.get_platform_code(membership_type_id)
     case membership_type_id.to_i
-      when MEMBERSHIP_TYPES[:TigerPsn]
-        'playstation'
-      when MEMBERSHIP_TYPES[:TigerXbox]
-        'xbox'
-      when MEMBERSHIP_TYPES[:TigerBlizzard]
-        'battlenet'
-      else
-        nil
+    when MEMBERSHIP_TYPES[:TigerPsn]
+      'playstation'
+    when MEMBERSHIP_TYPES[:TigerXbox]
+      'xbox'
+    when MEMBERSHIP_TYPES[:TigerBlizzard]
+      'battlenet'
     end
   end
 
@@ -466,78 +522,73 @@ class BungieApi
     return ITEM_BUCKET_IDS[bucket] if ITEM_BUCKET_IDS.key?(bucket)
 
     case bucket.to_s.strip.downcase
-      when 'primary', 'kinetic'
-        ITEM_BUCKET_IDS[:KINETIC_WEAPON]
-      when 'special', 'secondary', 'energy'
-        ITEM_BUCKET_IDS[:ENERGY_WEAPON]
-      when 'heavy', 'power'
-        ITEM_BUCKET_IDS[:HEAVY_WEAPON]
-      when 'ghost'
-        ITEM_BUCKET_IDS[:GHOST]
-      when 'head', 'helmet', 'helm', 'mask', 'hat'
-        ITEM_BUCKET_IDS[:HEAD]
-      when 'arm', 'arms', 'glove', 'gloves', 'gauntlet', 'gauntlets', 'hand', 'hands'
-        ITEM_BUCKET_IDS[:ARMS]
-      when 'chest'
-        ITEM_BUCKET_IDS[:CHEST]
-      when 'leg', 'legs', 'boot', 'boots', 'greaves', 'pant', 'pants'
-        ITEM_BUCKET_IDS[:LEGS]
-      when 'class', 'mark', 'bond', 'cape', 'cloak', 'towel'
-        ITEM_BUCKET_IDS[:CLASS_ITEM]
-      when 'ship'
-        ITEM_BUCKET_IDS[:SHIP]
-      when 'sparrow'
-        ITEM_BUCKET_IDS[:SPARROW]
-      when 'emblem', 'brag', 'humblebrag'
-        ITEM_BUCKET_IDS[:EMBLEM]
-      else
-        nil
+    when 'primary', 'kinetic'
+      ITEM_BUCKET_IDS[:KINETIC_WEAPON]
+    when 'special', 'secondary', 'energy'
+      ITEM_BUCKET_IDS[:ENERGY_WEAPON]
+    when 'heavy', 'power'
+      ITEM_BUCKET_IDS[:HEAVY_WEAPON]
+    when 'ghost'
+      ITEM_BUCKET_IDS[:GHOST]
+    when 'head', 'helmet', 'helm', 'mask', 'hat'
+      ITEM_BUCKET_IDS[:HEAD]
+    when 'arm', 'arms', 'glove', 'gloves', 'gauntlet', 'gauntlets', 'hand', 'hands'
+      ITEM_BUCKET_IDS[:ARMS]
+    when 'chest'
+      ITEM_BUCKET_IDS[:CHEST]
+    when 'leg', 'legs', 'boot', 'boots', 'greaves', 'pant', 'pants'
+      ITEM_BUCKET_IDS[:LEGS]
+    when 'class', 'mark', 'bond', 'cape', 'cloak', 'towel'
+      ITEM_BUCKET_IDS[:CLASS_ITEM]
+    when 'ship'
+      ITEM_BUCKET_IDS[:SHIP]
+    when 'sparrow'
+      ITEM_BUCKET_IDS[:SPARROW]
+    when 'emblem', 'brag', 'humblebrag'
+      ITEM_BUCKET_IDS[:EMBLEM]
     end
   end
 
   def self.get_bucket_code(bucket_id)
     case bucket_id.to_i
-      when ITEM_BUCKET_IDS[:KINETIC_WEAPON]
-        'kinetic'
-      when ITEM_BUCKET_IDS[:ENERGY_WEAPON]
-        'energy'
-      when ITEM_BUCKET_IDS[:HEAVY_WEAPON]
-        'power'
-      when ITEM_BUCKET_IDS[:GHOST]
-        'ghost'
-      when ITEM_BUCKET_IDS[:HEAD]
-        'helmet'
-      when ITEM_BUCKET_IDS[:ARMS]
-        'gloves'
-      when ITEM_BUCKET_IDS[:CHEST]
-        'chest'
-      when ITEM_BUCKET_IDS[:LEGS]
-        'boots'
-      when ITEM_BUCKET_IDS[:CLASS_ITEM]
-        'class'
-      when ITEM_BUCKET_IDS[:SHIP]
-        'ship'
-      when ITEM_BUCKET_IDS[:SPARROW]
-        'sparrow'
-      when ITEM_BUCKET_IDS[:EMBLEM]
-        'emblem'
-      else
-        nil
+    when ITEM_BUCKET_IDS[:KINETIC_WEAPON]
+      'kinetic'
+    when ITEM_BUCKET_IDS[:ENERGY_WEAPON]
+      'energy'
+    when ITEM_BUCKET_IDS[:HEAVY_WEAPON]
+      'power'
+    when ITEM_BUCKET_IDS[:GHOST]
+      'ghost'
+    when ITEM_BUCKET_IDS[:HEAD]
+      'helmet'
+    when ITEM_BUCKET_IDS[:ARMS]
+      'gloves'
+    when ITEM_BUCKET_IDS[:CHEST]
+      'chest'
+    when ITEM_BUCKET_IDS[:LEGS]
+      'boots'
+    when ITEM_BUCKET_IDS[:CLASS_ITEM]
+      'class'
+    when ITEM_BUCKET_IDS[:SHIP]
+      'ship'
+    when ITEM_BUCKET_IDS[:SPARROW]
+      'sparrow'
+    when ITEM_BUCKET_IDS[:EMBLEM]
+      'emblem'
     end
   end
 
   def self.get_bucket_name(bucket_code)
     normalized_bucket_code = get_bucket_code(ITEM_BUCKET_IDS[bucket_code.to_sym])
     return bucket_code.to_s.capitalize unless normalized_bucket_code
+
     normalized_bucket_code.to_s.gsub(/\w+/, &:capitalize)
   end
-
 
   def self.get_hex_color_for_damage_type(damage_type)
     damage_type_key = damage_type.downcase.to_sym
     DAMAGE_COLOR[damage_type_key] || DAMAGE_COLOR[:kinetic]
   end
-
 
   private
 

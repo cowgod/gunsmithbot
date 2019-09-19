@@ -1,37 +1,89 @@
+# frozen_string_literal: true
+
 require 'slack-ruby-bot'
 require_relative 'gunsmith_bot'
 require_relative 'query_error'
 
 require_relative '../lib/monkey_patches'
 
-
+# Wrapper for GunsmithBot class, to adapt it to usage in Slack
 class GunsmithBotSlack < SlackRubyBot::Bot
-  BOT_NAME     = 'Banshee-44'.freeze
-  BOT_ICON_URL = 'http://binrock.net/banshee44.png'.freeze
+  BOT_NAME     = 'Banshee-44'
+  BOT_ICON_URL = 'http://binrock.net/banshee44.png'
   BOT_USERNAME = (ENV['GUNSMITH_BOT_USERNAME'] || 'gunsmithbot')
-
 
   command 'help' do |client, data, _|
     output = <<~HELP
       To show off your weapon/armor, message the bot with your gamertag, network, and weapon/armor slot, separated by spaces. The bot will always look at the *most recently played character* on your account.
       The standard usage looks like this: ```@#{BOT_USERNAME} MyGamerTag playstation kinetic```
-      
+
       If you've set up your Slack profile so that your *title* ("What I Do") matches your in-game username, you can omit this: ```@#{BOT_USERNAME} playstation helmet```
-      
+
       If your gamertag only exists on one network, that can be omitted as well: ```@#{BOT_USERNAME} heavy```
-      
+
       Alternatively, instead of a specific slot, you can say `weapons`, `armor`, or `loadout`, and you'll get a complete summary of every currently equipped weapon, armor piece, or both.
-      
+
       The full list of supported slots is:```#{BungieApi::ITEM_BUCKET_IDS.values.map { |bucket_id| BungieApi.get_bucket_code(bucket_id) }.reject(&:blank?).join(', ')}, weapons, armor, loadout```
-      
+
       *Special note to Xbox Users:*
       If your gamertag has any spaces in it, these will need to be substituted with underscores (`_`) in order for the bot to recognize the input properly.
       This is only required when inputting the gamertag manually however; spaces are fine in your Slack title.
-      
+
       _Keep that thing oiled, guardian._
     HELP
 
     client.say(text: output, channel: data.channel)
+  end
+
+  command 'register' do |client, data, _|
+    # Make it look like we're typing
+    client.typing(channel: data.channel)
+
+    # Start out our response by tagging the user that messaged us
+    message_text = ''
+    message_text += "<@#{data.user}>: " unless data.user&.blank?
+
+    # Split the input into words, and strip out the element that represents our own
+    # userid (which will look something like '<@UCNTC2YH0>')
+    args = data.text&.split(/\s+/).grep_v(/^<@[A-Z0-9]+>$/)
+
+    requested_gamertag = args[1]
+    requested_platform = args[2]
+
+    unless requested_gamertag && requested_platform
+      message_text += "Usage: `@#{BOT_USERNAME} register <gamertag> <platform>`"
+      client.say(text: message_text, channel: data.channel)
+      break
+    end
+
+    begin
+      results = $gunsmith_bot.query_user_and_platform(requested_gamertag, requested_platform)
+    rescue QueryError => e
+      message_text += "Couldn't find a user for gamertag '#{requested_gamertag}' on platform '#{requested_platform}'."
+      client.say(text: message_text, channel: data.channel)
+      break
+    end
+
+    sql = <<~SQL
+
+    SQL
+
+    results = client.query("SELECT * FROM users WHERE group='githubbers'")
+
+    results.each do |row|
+      # conveniently, row is a hash
+      # the keys are the fields, as you'd expect
+      # the values are pre-built ruby primitives mapped from their corresponding field types in MySQL
+      puts row['id'] # row["id"].is_a? Integer
+      puts row['dne'] if row['dne'] # non-existant hash entry is nil
+    end
+
+    data.user
+    data.team
+
+    message_text += "Successfully registered you with gamertag '#{results[:gamertag]}' on platform '#{results[:platform]}'."
+
+    client.say(text: message_text, channel: data.channel)
   end
 
   command(/.*/) do |client, data, _|
@@ -46,57 +98,54 @@ class GunsmithBotSlack < SlackRubyBot::Bot
       args = data.text.split(/\s+/).grep_v(/^<@[A-Z0-9]+>$/)
 
       case args.length
-        when 1
-          # If they didn't provide a gamertag, use the first name of the Slack
-          # user. If it's not set, use their title ("What I do")
-          requested_gamertag = client.store.users[data.user][:profile][:title] || client.store.users[data.user][:name]
-          requested_platform = nil
-          requested_slot     = args[0]
-        when 2
-          requested_gamertag = args[0]
-          requested_platform = nil
-          requested_slot     = args[1]
-        when 3
-          requested_gamertag = args[0]
-          requested_platform = args[1]
-          requested_slot     = args[2]
-        else
-          raise ArgumentError, 'Wrong number of arguments.'
+      when 1
+        # If they didn't provide a gamertag, use the first name of the Slack
+        # user. If it's not set, use their title ("What I do")
+        requested_gamertag = client.store.users[data.user][:profile][:title] || client.store.users[data.user][:name]
+        requested_platform = nil
+        requested_slot     = args[0]
+      when 2
+        requested_gamertag = args[0]
+        requested_platform = nil
+        requested_slot     = args[1]
+      when 3
+        requested_gamertag = args[0]
+        requested_platform = args[1]
+        requested_slot     = args[2]
+      else
+        raise ArgumentError, 'Wrong number of arguments.'
       end
-
 
       case requested_slot.strip.downcase
-        when 'loadout', 'weapons', 'weapon', 'guns', 'gun', 'armor'
-          case requested_slot.strip.downcase
-            when 'weapons', 'weapon', 'guns', 'gun'
-              loadout_type = :weapons
-            when 'armor'
-              loadout_type = :armor
-            else
-              loadout_type = :full
-          end
-
-          results = $gunsmith_bot.query_loadout(requested_gamertag, requested_platform, loadout_type)
-          break if results.blank?
-
-          loadout_response(client, data, results, loadout_type)
+      when 'loadout', 'weapons', 'weapon', 'guns', 'gun', 'armor'
+        case requested_slot.strip.downcase
+        when 'weapons', 'weapon', 'guns', 'gun'
+          loadout_type = :weapons
+        when 'armor'
+          loadout_type = :armor
         else
-          results = $gunsmith_bot.query(requested_gamertag, requested_platform, requested_slot)
-          break if results.blank?
+          loadout_type = :full
+        end
 
-          single_slot_response(client, data, results)
+        results = $gunsmith_bot.query_loadout(requested_gamertag, requested_platform, loadout_type)
+        break if results.blank?
+
+        loadout_response(client, data, results, loadout_type)
+      else
+        results = $gunsmith_bot.query(requested_gamertag, requested_platform, requested_slot)
+        break if results.blank?
+
+        single_slot_response(client, data, results)
       end
-    rescue QueryError => message
-      print_usage(client, data, message)
+    rescue QueryError => e
+      print_usage(client, data, e)
     end
   end
-
 
   def self.single_slot_response(client, data, results)
     # Prepare output
     destiny_tracker_url = "https://db.destinytracker.com/d2/en/items/#{URI.encode(results[:item][:hash])}"
     icon_url            = results[:item][:has_icon] ? "https://www.bungie.net/#{URI.encode(results[:item][:icon])}" : nil
-
 
     message_text = ''
     message_text += "<@#{data&.user}>: " unless data&.user&.blank?
@@ -106,13 +155,12 @@ class GunsmithBotSlack < SlackRubyBot::Bot
       message_text += 'Gamertag Suggestions: '
 
       message_text += results[:gamertag_suggestions]
-        .take(5)
-        .map { |gamertag| "`#{gamertag}`" }
-        .join(', ')
+                      .take(5)
+                      .map { |gamertag| "`#{gamertag}`" }
+                      .join(', ')
     end
 
     message_text.strip!
-
 
     attachment_title = results[:item][:name]
 
@@ -132,23 +180,22 @@ class GunsmithBotSlack < SlackRubyBot::Bot
 
     # Perks
     field_text = results[:item][:perk_sockets]
-      .map do |perk_socket|
-      perk_socket.map do |perk|
-        perk[:selected] ? "*#{perk[:name]}*" : perk[:name]
-      end
-        .join(' | ')
-    end
-      .map { |line| "- #{line}" }
-      .join("\n")
+                 .map do |perk_socket|
+                   perk_socket.map do |perk|
+                     perk[:selected] ? "*#{perk[:name]}*" : perk[:name]
+                   end
+                              .join(' | ')
+                 end
+                 .map { |line| "- #{line}" }
+                 .join("\n")
 
     unless field_text.blank?
-      attachment_fields.push({
-                               title: 'Perks',
-                               value: field_text,
-                               short: false
-                             })
+      attachment_fields.push(
+        title: 'Perks',
+        value: field_text,
+        short: false
+      )
     end
-
 
     # Masterwork / Mod
     masterwork = 'n/a'
@@ -159,70 +206,67 @@ class GunsmithBotSlack < SlackRubyBot::Bot
         masterwork = 'Yes'
       end
     end
-    attachment_fields.push({
-                             title: 'Masterwork',
-                             value: masterwork,
-                             short: true
-                           })
+    attachment_fields.push(
+      title: 'Masterwork',
+      value: masterwork,
+      short: true
+    )
 
-    attachment_fields.push({
-                             title: 'Mod',
-                             ### TODO -- get rid of description?
-                             value: results[:item][:mod] ? results[:item][:mod][:name].to_s : 'n/a',
-                             short: true
-                           })
-
+    attachment_fields.push(
+      title: 'Mod',
+      ### TODO -- get rid of description?
+      value: results[:item][:mod] ? results[:item][:mod][:name].to_s : 'n/a',
+      short: true
+    )
 
     # Stats
     stat_abbreviations = {
       'Rounds Per Minute' => 'RPM',
-      'Reload Speed'      => 'Reload',
+      'Reload Speed'      => 'Reload'
       # 'Magazine' => 'Mag'
     }
 
     attachment_footer = results[:item][:stats]
-      .each { |stat| stat[:name].to_s.gsub!(/^(#{stat_abbreviations.keys.join('|')})$/, stat_abbreviations) }
-      .map { |stat| "#{stat[:name]}: #{stat[:value]}" }
-      .join(', ')
+                        .each { |stat| stat[:name].to_s.gsub!(/^(#{stat_abbreviations.keys.join('|')})$/, stat_abbreviations) }
+                        .map { |stat| "#{stat[:name]}: #{stat[:value]}" }
+                        .join(', ')
 
     attachment_footer = 'No stats, but it sure looks pretty' if attachment_footer.blank?
-
 
     client.web_client.chat_postMessage(
       channel:     data.channel,
       as_user:     true,
       text:        message_text,
       attachments: [
-                     {
-                       color:       attachment_color,
-                       title:       attachment_title,
-                       title_link:  destiny_tracker_url,
-                       thumb_url:   icon_url,
-                       text:        attachment_text,
-                       fallback:    attachment_fallback,
-                       fields:      attachment_fields,
-                       footer_icon: BOT_ICON_URL,
-                       # footer:      BOT_NAME,
-                       footer: attachment_footer,
-                       # ts:          Time.now.to_i,
-                       mrkdwn_in: ['fields']
-                     }
-                   ].to_json
+        {
+          color:       attachment_color,
+          title:       attachment_title,
+          title_link:  destiny_tracker_url,
+          thumb_url:   icon_url,
+          text:        attachment_text,
+          fallback:    attachment_fallback,
+          fields:      attachment_fields,
+          footer_icon: BOT_ICON_URL,
+          # footer:      BOT_NAME,
+          footer:      attachment_footer,
+          # ts:          Time.now.to_i,
+          mrkdwn_in:   ['fields']
+        }
+      ].to_json
     )
   end
-
 
   def self.loadout_response(client, data, results, type = :full)
     # Prepare output
 
-    case type
-      when :weapons
-        canonical_loadout_type = 'weapons'
-      when :armor
-        canonical_loadout_type = 'armor'
-      else
-        canonical_loadout_type = 'loadout'
-    end
+    canonical_loadout_type = case type
+                             when :weapons
+                               'weapons'
+                             when :armor
+                               'armor'
+                             else
+                               'loadout'
+                             end
 
     message_text = ''
     message_text += "<@#{data&.user}>: " unless data&.user&.blank?
@@ -232,15 +276,14 @@ class GunsmithBotSlack < SlackRubyBot::Bot
       message_text += 'Gamertag Suggestions: '
 
       message_text += results[:gamertag_suggestions]
-        .take(5)
-        .map { |gamertag| "`#{gamertag}`" }
-        .join(', ')
+                      .take(5)
+                      .map { |gamertag| "`#{gamertag}`" }
+                      .join(', ')
     end
 
     message_text += "\n#{results&.dig(:slots, :SUBCLASS, :name)}"
 
     message_text.strip!
-
 
     attachments = []
 
@@ -269,51 +312,45 @@ class GunsmithBotSlack < SlackRubyBot::Bot
       field_text = '- Perks: '
 
       field_text += item[:perk_sockets]
-        .map do |perk_socket|
+                    .map do |perk_socket|
         perk_socket
           .select { |perk| perk[:selected] }
           .map { |perk| perk[:name] }
           .join(', ')
       end
-        .join(', ')
+                    .join(', ')
 
       if item[:masterwork]
         field_text += "\n- Masterwork: #{item[:masterwork][:affected_stat]} - #{item[:masterwork][:value]}"
       end
 
-      if item[:mod]
-        field_text += "\n- Mod: #{item[:mod][:name]}"
-      end
+      field_text += "\n- Mod: #{item[:mod][:name]}" if item[:mod]
 
       next if field_text.blank? || field_text == '- Perks: '
 
-      attachment_fields.push({
-                               # title: field_title,
-                               value: field_text,
-                               short: false
-                             })
+      attachment_fields.push(
+        # title: field_title,
+        value: field_text,
+        short: false
+      )
 
       attachments.push(
-        {
-          color:      attachment_color,
-          title:      attachment_title,
-          title_link: destiny_tracker_url,
-          thumb_url:  icon_url,
-          # text:       attachment_text,
-          # fallback:    attachment_fallback,
-          fields: attachment_fields,
-          # footer_icon: BOT_ICON_URL,
-          # footer:      BOT_NAME,
-          # footer: attachment_footer,
-          # ts:        Time.now.to_i,
-          mrkdwn_in: ['fields']
-        }
+        color:      attachment_color,
+        title:      attachment_title,
+        title_link: destiny_tracker_url,
+        thumb_url:  icon_url,
+        # text:       attachment_text,
+        # fallback:    attachment_fallback,
+        fields:     attachment_fields,
+        # footer_icon: BOT_ICON_URL,
+        # footer:      BOT_NAME,
+        # footer: attachment_footer,
+        # ts:        Time.now.to_i,
+        mrkdwn_in:  ['fields']
       )
     end
 
-
     # attachment_footer = 'No stats, but it sure looks pretty' if attachment_footer.blank?
-
 
     client.web_client.chat_postMessage(
       channel:     data.channel,
@@ -322,7 +359,6 @@ class GunsmithBotSlack < SlackRubyBot::Bot
       attachments: attachments.to_json
     )
   end
-
 
   def self.print_usage(client, data, additional_message = nil)
     output = ''
@@ -339,7 +375,6 @@ class GunsmithBotSlack < SlackRubyBot::Bot
     client.say(text: output, channel: data.channel)
   end
 end
-
 
 $gunsmith_bot = GunsmithBot.new
 
