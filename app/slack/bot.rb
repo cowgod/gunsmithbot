@@ -1,8 +1,8 @@
 require 'slack-ruby-bot'
-require_relative '../bot'
-require_relative '../query_error'
+# require_relative '../../lib/gunsmith/bot'
+# require_relative '../../query_error'
 
-require_relative '../../monkey_patches'
+# require_relative '../../monkey_patches'
 
 
 module Gunsmith

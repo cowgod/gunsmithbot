@@ -3,7 +3,7 @@
 require_relative '../bungie/api'
 require_relative '../trials_report/api'
 
-require_relative 'query_error'
+require_relative '../query_error'
 
 require 'mysql2'
 require 'pp'
@@ -12,19 +12,9 @@ module Gunsmith
   # The core class representing the bot's main interface
   class Bot
     def initialize
-      %w[BUNGIE_API_TOKEN GUNSMITH_DB_HOST GUNSMITH_DB_USER GUNSMITH_DB_PASS GUNSMITH_DB_NAME].each do |var_name|
+      %w[BUNGIE_API_TOKEN].each do |var_name|
         raise "Environment variable '#{var_name}' not set" unless ENV[var_name]
       end
-
-      # this takes a hash of options, almost all of which map directly
-      # to the familiar database.yml in rails
-      # See http://api.rubyonrails.org/classes/ActiveRecord/ConnectionAdapters/Mysql2Adapter.html
-      @db_conn = Mysql2::Client.new(
-        host:     ENV['GUNSMITH_DB_HOST'],
-        username: ENV['GUNSMITH_DB_USER'],
-        password: ENV['GUNSMITH_DB_PASS'],
-        database: ENV['GUNSMITH_DB_NAME']
-      )
 
       @bungie_api = Bungie::Api.new(ENV['BUNGIE_API_TOKEN'])
     end

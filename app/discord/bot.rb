@@ -1,16 +1,16 @@
 require 'discordrb'
 require 'discordrb/webhooks'
-require_relative '../bot'
-require_relative '../query_error'
+# require_relative '../../lib/gunsmith/bot'
+# require_relative '../../query_error'
 
-require_relative '../../monkey_patches'
+# require_relative '../../monkey_patches'
 
 require 'pp'
 
 
 module Gunsmith
   module Discord
-# Wrapper for GunsmithBot class, to adapt it to usage in Discord
+    # Wrapper for GunsmithBot class, to adapt it to usage in Discord
     class Bot < Discordrb::Bot
       DISCORD_CLIENT_ID = 496066614614294529
       BOT_NAME          = 'Banshee-44'.freeze
