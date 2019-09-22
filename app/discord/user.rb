@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 module Gunsmith
   module Discord
     # Represent a Discord user

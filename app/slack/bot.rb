@@ -1,8 +1,6 @@
-require 'slack-ruby-bot'
-# require_relative '../../lib/gunsmith/bot'
-# require_relative '../../query_error'
+# frozen_string_literal: true
 
-# require_relative '../../monkey_patches'
+require 'slack-ruby-bot'
 
 
 module Gunsmith

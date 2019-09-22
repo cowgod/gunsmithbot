@@ -1,9 +1,7 @@
+# frozen_string_literal: true
+
 require 'discordrb'
 require 'discordrb/webhooks'
-# require_relative '../../lib/gunsmith/bot'
-# require_relative '../../query_error'
-
-# require_relative '../../monkey_patches'
 
 require 'pp'
 

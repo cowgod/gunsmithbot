@@ -1,5 +1,5 @@
-# require_relative '../lib/gunsmith/slack/bot'
-# require_relative '../lib/gunsmith/bot'
+# frozen_string_literal: true
+
 require_relative '../../environment'
 require_relative 'bot'
 
