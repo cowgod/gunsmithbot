@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-require_relative '../bungie/api'
-require_relative '../trials_report/api'
-
-require_relative '../query_error'
+# require_relative '../bungie/api'
+# require_relative '../trials_report/api'
+#
+# require_relative '../query_error'
 
 require 'mysql2'
 require 'pp'
@@ -37,6 +37,11 @@ module Gunsmith
 
       results[:gamertag] = results[:user_info]&.dig('displayName')
       results[:platform] = Bungie::Api.get_platform_code(results[:user_info]&.dig('membershipType'))
+
+      results[:bungie_user] = Bungie::BungieUser.find_or_create_by(membership_id: results[:user_info]&.dig('membershipId')) do |new_user|
+        new_user.membership_type = results[:user_info]&.dig('membershipType')
+        new_user.display_name    = results[:user_info]&.dig('displayName')
+      end
 
       results
     end
