@@ -12,11 +12,21 @@ module Gunsmith
     command 'help' do |client, data, _|
       output = <<~HELP
         To show off your weapon/armor, message the bot with your gamertag, network, and weapon/armor slot, separated by spaces. The bot will always look at the *most recently played character* on your account.
-        The standard usage looks like this: ```@#{BOT_USERNAME} MyGamerTag playstation kinetic```
+        The standard usage looks like this:
 
-        If you've set up your Slack profile so that your *title* ("What I Do") matches your in-game username, you can omit this: ```@#{BOT_USERNAME} playstation helmet```
+        ```@#{BOT_USERNAME} <gamertag> <platform> <slot>```
 
-        If your gamertag only exists on one network, that can be omitted as well: ```@#{BOT_USERNAME} heavy```
+        For example:
+
+        ```@#{BOT_USERNAME} MyGamertag battlenet kinetic```
+
+        If your gamertag only exists on one network, that can be omitted:
+
+        ```@#{BOT_USERNAME} MyGamertag heavy```
+
+        If you've registered with the bot (`@#{BOT_USERNAME} register <gamertag> <platform>`) then you can simply list the slot to display:
+
+        ```@#{BOT_USERNAME} helmet```
 
         Alternatively, instead of a specific slot, you can say `weapons`, `armor`, or `loadout`, and you'll get a complete summary of every currently equipped weapon, armor piece, or both.
 
@@ -24,7 +34,6 @@ module Gunsmith
 
         *Special note to Xbox Users:*
         If your gamertag has any spaces in it, these will need to be substituted with underscores (`_`) in order for the bot to recognize the input properly.
-        This is only required when inputting the gamertag manually however; spaces are fine in your Slack title.
 
         _Keep that thing oiled, guardian._
       HELP
@@ -55,7 +64,7 @@ module Gunsmith
       end
 
       begin
-        results = $gunsmith_bot.query_user_and_platform(requested_gamertag, requested_platform)
+        results = Gunsmith::Bot.instance.query_user_and_platform(requested_gamertag, requested_platform)
       rescue QueryError => e
         message_text += "Couldn't find a user for gamertag '#{requested_gamertag}' on platform '#{requested_platform}'."
         client.say(text: message_text, channel: data.channel)
@@ -69,11 +78,7 @@ module Gunsmith
         break
       end
 
-      # If the team doesn't already exist, create it
-      team        = Slack::SlackTeam.find_or_create_by(team_id: client.team.id)
-      team.domain = client.team.domain
-      team.name   = client.team.name
-      team.save
+      team = load_and_update_team(client.team.id, client.team.name, client.team.domain)
 
       # Associate the specified Bungie.net user with the slack user who made the request
       user             = Slack::SlackUser.find_or_create_by(slack_team: team, user_id: data.user)
@@ -81,30 +86,34 @@ module Gunsmith
       user.save
 
 
-      message_text += "Successfully registered you with gamertag '#{results[:gamertag]}' on platform '#{results[:platform]}'."
+      message_text += "Successfully registered you with gamertag '#{results[:bungie_user].gamertag}' on platform '#{results[:bungie_user].platform}'."
 
       client.say(text: message_text, channel: data.channel)
     end
 
 
     command(/.*/) do |client, data, _|
-      results = nil
-
       # Make it look like we're typing
       client.typing(channel: data.channel)
 
       begin
+        bungie_user = nil
+
+
         # Split the input into words, and strip out the element that represents our own
         # userid (which will look something like '<@UCNTC2YH0>')
         args = data.text.split(/\s+/).grep_v(/^<@[A-Z0-9]+>$/)
 
         case args.length
         when 1
-          # If they didn't provide a gamertag, use the first name of the Slack
-          # user. If it's not set, use their title ("What I do")
-          requested_gamertag = client.store.users[data.user][:profile][:title] || client.store.users[data.user][:name]
+          requested_gamertag = nil
           requested_platform = nil
           requested_slot     = args[0]
+
+          # If they just provided a slot, see if they're registered with us
+          team        = Slack::SlackTeam.find_by(team_id: client.team.id)
+          user        = Slack::SlackUser.find_by(slack_team: team, user_id: data.user)
+          bungie_user = user&.bungie_user
         when 2
           requested_gamertag = args[0]
           requested_platform = nil
@@ -115,6 +124,23 @@ module Gunsmith
           requested_slot     = args[2]
         else
           raise ArgumentError, 'Wrong number of arguments.'
+        end
+
+
+        # If they aren't registered with us, see if we can find the user in the API
+        if !bungie_user && requested_gamertag
+          bungie_user = Bungie::BungieUser.search_user_by_gamertag_and_platform(requested_gamertag, requested_platform)
+        end
+
+        # If we still didn't find it, print an error
+        unless bungie_user
+          print_unregistered_user_message(client, data)
+          break
+        end
+
+        unless requested_slot
+          print_usage(client, data)
+          break
         end
 
         case requested_slot.strip.downcase
@@ -128,12 +154,12 @@ module Gunsmith
             loadout_type = :full
           end
 
-          results = $gunsmith_bot.query_loadout(requested_gamertag, requested_platform, loadout_type)
+          results = Gunsmith::Bot.instance.query_loadout(bungie_user, loadout_type)
           break if results.blank?
 
           loadout_response(client, data, results, loadout_type)
         else
-          results = $gunsmith_bot.query(requested_gamertag, requested_platform, requested_slot)
+          results = Gunsmith::Bot.instance.query(bungie_user, requested_slot)
           break if results.blank?
 
           single_slot_response(client, data, results)
@@ -151,9 +177,9 @@ module Gunsmith
 
       message_text = ''
       message_text += "<@#{data&.user}>: " unless data&.user&.blank?
-      message_text += "`#{results[:gamertag]} #{results[:platform]} #{results[:slot]}`\n"
+      message_text += "`#{results[:bungie_user].gamertag} #{results[:bungie_user].platform} #{results[:slot]}`\n"
 
-      unless results[:gamertag_suggestions]&.blank?
+      if results[:gamertag_suggestions]&.present?
         message_text += 'Gamertag Suggestions: '
 
         message_text += results[:gamertag_suggestions]
@@ -258,7 +284,6 @@ module Gunsmith
       )
     end
 
-
     def self.loadout_response(client, data, results, type = :full)
       # Prepare output
 
@@ -273,9 +298,9 @@ module Gunsmith
 
       message_text = ''
       message_text += "<@#{data&.user}>: " unless data&.user&.blank?
-      message_text += "`#{results[:gamertag]} #{results[:platform]} #{canonical_loadout_type}`\n"
+      message_text += "`#{results[:bungie_user].gamertag} #{results[:bungie_user].platform} #{canonical_loadout_type}`\n"
 
-      unless results[:gamertag_suggestions]&.blank?
+      if results[:gamertag_suggestions]&.present?
         message_text += 'Gamertag Suggestions: '
 
         message_text += results[:gamertag_suggestions]
@@ -363,7 +388,6 @@ module Gunsmith
       )
     end
 
-
     def self.print_usage(client, data, additional_message = nil)
       output = ''
 
@@ -377,6 +401,29 @@ module Gunsmith
       output.strip!
 
       client.say(text: output, channel: data.channel)
+    end
+
+    def self.print_unregistered_user_message(client, data)
+      output = ''
+
+      output += "<@#{data&.user}>: " unless data&.user&.blank?
+
+      output += "Memory's not what it used to be. Who're you again?\n"
+      output += "Use `@#{BOT_USERNAME} register <gamertag> <platform>` to register your Bungie.net profile.\n"
+      output += "Use the 'help' command for more info."
+
+      output.strip!
+
+      client.say(text: output, channel: data.channel)
+    end
+
+    def self.load_and_update_team(team_id, name, domain)
+      # If the team doesn't already exist, create it
+      team        = Slack::SlackTeam.find_or_create_by(team_id: team_id)
+      team.name   = name
+      team.domain = domain
+      team.save
+      team
     end
   end
 end

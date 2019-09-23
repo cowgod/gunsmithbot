@@ -93,12 +93,12 @@ HELP
               loadout_type = :full
             end
 
-            results = $gunsmith_bot.query_loadout(requested_gamertag, requested_platform, loadout_type)
+            results = Gunsmith::Bot.instance.query_loadout(requested_gamertag, requested_platform, loadout_type)
             break if results.blank?
 
             loadout_response(event, results, loadout_type)
           else
-            results = $gunsmith_bot.query(requested_gamertag, requested_platform, requested_slot)
+            results = Gunsmith::Bot.instance.query(requested_gamertag, requested_platform, requested_slot)
             break if results.blank?
 
             single_slot_response(event, results)

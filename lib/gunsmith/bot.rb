@@ -1,35 +1,23 @@
 # frozen_string_literal: true
 
-# require_relative '../bungie/api'
-# require_relative '../trials_report/api'
-#
-# require_relative '../query_error'
-
-require 'mysql2'
+require 'singleton'
 require 'pp'
 
 module Gunsmith
   # The core class representing the bot's main interface
   class Bot
-    def initialize
-      %w[BUNGIE_API_TOKEN].each do |var_name|
-        raise "Environment variable '#{var_name}' not set" unless ENV[var_name]
-      end
-
-      @bungie_api = Bungie::Api.new(ENV['BUNGIE_API_TOKEN'])
-    end
-
+    include Singleton
 
     def query_user_and_platform(requested_gamertag, requested_platform)
       results = { gamertag_suggestions: [] }
 
-      results[:user_info] = @bungie_api.search_user(requested_gamertag, requested_platform)
+      results[:user_info] = Bungie::Api.instance.search_user(requested_gamertag, requested_platform)
 
       unless results[:user_info]
         search_results = TrialsReport::Api.search_user(requested_gamertag, requested_platform)
         raise QueryError, "Couldn't find the requested user." unless search_results&.first
 
-        results[:user_info]            = @bungie_api.search_user(search_results&.first&.dig('displayName'), requested_platform)
+        results[:user_info]            = Bungie::Api.instance.search_user(search_results&.first&.dig('displayName'), requested_platform)
         results[:gamertag_suggestions] = search_results.map { |result| result&.dig('displayName') }
       end
 
@@ -59,23 +47,21 @@ module Gunsmith
     end
 
 
-    def query(requested_gamertag, requested_platform, requested_slot)
+    def query(bungie_user, requested_slot)
       results = {}
 
-      user_results = query_user_and_platform(requested_gamertag, requested_platform)
-      user_info    = user_results.dig(:user_info)
-      results.merge!(user_results)
+      results[:bungie_user] = bungie_user
 
       slot_results = query_slot(requested_slot)
       results.merge!(slot_results)
 
-      character = @bungie_api.active_char_with_equipment(user_info['membershipType'], user_info['membershipId'])
+      character = bungie_user.load_active_character_with_equipment
       raise QueryError, "Couldn't find the most recently used character for the requested user." unless character
 
-      requested_item = character.dig('items').find { |item| item.dig('bucketHash') == slot_results[:bucket_id] }
+      requested_item = character.item_rows.find { |item| item.dig('bucketHash') == slot_results[:bucket_id] }
       raise QueryError, "Couldn't find the requested item or armor piece." unless requested_item
 
-      results[:item] = @bungie_api.item_details(user_info['membershipType'], user_info['membershipId'], requested_item['itemInstanceId'])
+      results[:item] = Bungie::Api.instance.item_details(bungie_user.membership_type, bungie_user.membership_id, requested_item['itemInstanceId'])
       raise QueryError, "Couldn't load info for the requested item or armor piece." unless results[:item]
 
       results
@@ -94,14 +80,12 @@ module Gunsmith
     end
 
 
-    def query_loadout(requested_gamertag, requested_platform, type = :full)
+    def query_loadout(bungie_user, type = :full)
       results = {}
 
-      user_results = query_user_and_platform(requested_gamertag, requested_platform)
-      user_info    = user_results.dig(:user_info)
-      results.merge!(user_results)
+      results[:bungie_user] = bungie_user
 
-      character = @bungie_api.active_char_with_equipment(user_info['membershipType'], user_info['membershipId'])
+      character = bungie_user.load_active_character_with_equipment
       raise QueryError, "Couldn't find the most recently used character for the requested user." unless character
 
       results[:slots] = {}
@@ -113,10 +97,10 @@ module Gunsmith
 
         slot_results = query_slot(slot)
 
-        requested_item = character.dig('items').find { |item| item.dig('bucketHash') == slot_results[:bucket_id] }
+        requested_item = character.item_rows.find { |item| item.dig('bucketHash') == slot_results[:bucket_id] }
         raise QueryError, "Couldn't find the requested item or armor piece." unless requested_item
 
-        results[:slots][slot] = @bungie_api.item_details(user_info['membershipType'], user_info['membershipId'], requested_item['itemInstanceId'])
+        results[:slots][slot] = Bungie::Api.instance.item_details(bungie_user.membership_type, bungie_user.membership_id, requested_item['itemInstanceId'])
         raise QueryError, "Couldn't load info for the requested item or armor piece." unless results[:slots][slot]
       end
 

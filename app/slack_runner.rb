@@ -2,6 +2,4 @@
 
 require_relative '../environment'
 
-$gunsmith_bot = Gunsmith::Bot.new
-
 Gunsmith::SlackBot.run

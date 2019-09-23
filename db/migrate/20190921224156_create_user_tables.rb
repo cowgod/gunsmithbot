@@ -13,6 +13,22 @@ class CreateUserTables < ActiveRecord::Migration[6.0]
     add_index :bungie_users, [:membership_id], unique: true
 
 
+    create_table :bungie_characters do |t|
+      t.references :bungie_user, foreign_key: true, null: false
+      t.string :character_id
+      t.string :race_hash
+      t.string :race_name
+      t.string :class_hash
+      t.string :class_name
+      t.string :gender_hash
+      t.string :gender_name
+
+      t.timestamps
+    end
+
+    add_index :bungie_characters, [:character_id], unique: true
+
+
     create_table :slack_teams do |t|
       t.string :team_id
       t.string :name

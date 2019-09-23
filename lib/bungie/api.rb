@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'singleton'
 require 'httparty'
 require 'uri'
 require 'time'
@@ -14,7 +15,9 @@ require 'pp'
 module Bungie
   # Class to encapsulate communication with the Bungie Destiny 2 API
   class Api
+    include Singleton
     include HTTParty
+
     base_uri 'https://www.bungie.net/Platform/'
 
     COMPONENTS       = {
@@ -229,13 +232,21 @@ module Bungie
       void:    '#400080'
     }.freeze
 
-    def initialize(api_key)
+    def initialize
+      %w[BUNGIE_API_TOKEN].each do |var_name|
+        raise "Environment variable '#{var_name}' not set" unless ENV[var_name]
+      end
+
       puts 'Initializing Bungie API... Done.'
-      @options = { headers: { 'X-API-Key' => api_key } }
+
+      @options = { headers: { 'X-API-Key' => ENV['BUNGIE_API_TOKEN'] } }
       initialize_manifest
     end
 
     def search_user(requested_gamertag, requested_platform = nil)
+      # If they didn't give us a gamertag to search, there's nothing we can do
+      return nil unless requested_gamertag
+
       # Transform the requested platform into a numeric ID
       membership_type_id = Bungie::Api.get_membership_type_id(requested_platform) || -1
 
@@ -259,6 +270,24 @@ module Bungie
 
 
     def active_char_with_equipment(membership_type, membership_id)
+      characters = get_characters_with_equipment(membership_type, membership_id)
+      return nil unless characters
+
+      latest_time_played = Time.new(1980, 1, 1)
+      active_char        = nil
+
+      characters.each_pair do |_, character|
+        if character && Time.parse(character.dig('dateLastPlayed')) > latest_time_played
+          active_char        = character
+          latest_time_played = Time.parse(character.dig('dateLastPlayed'))
+        end
+      end
+
+      active_char
+    end
+
+
+    def get_characters_with_equipment(membership_type, membership_id)
       url      = "/Destiny2/#{URI.escape(membership_type.to_s)}/Profile/#{URI.escape(membership_id.to_s)}/"
       response = self.class.get(
         url,
@@ -269,25 +298,13 @@ module Bungie
         )
       )
 
-      parsed_response = response.parsed_response['Response']
-      return nil unless parsed_response
+      characters = response.parsed_response['Response']&.dig('characters', 'data')
 
-      latest_time_played = Time.new(1980, 1, 1)
-      active_char        = nil
-
-      parsed_response.dig('characters', 'data').each_pair do |_, character|
-        if character && Time.parse(character.dig('dateLastPlayed')) > latest_time_played
-          active_char        = character
-          latest_time_played = Time.parse(character.dig('dateLastPlayed'))
-        end
+      characters.each_key do |character_id|
+        characters[character_id]['items'] = response.parsed_response['Response']&.dig('characterEquipment', 'data', character_id, 'items')
       end
 
-      return nil unless active_char
-
-      character_id         = active_char.dig('characterId')
-      active_char['items'] = parsed_response.dig('characterEquipment', 'data', character_id, 'items')
-
-      active_char
+      characters
     end
 
 
