@@ -17,6 +17,8 @@ test:
 
 production:
   <<: *default
-  database: gunsmith
+  host: <%= ENV['GUNSMITH_DB_HOST'] %>
+  username: <%= ENV['GUNSMITH_DB_USERNAME'] %>
   password: <%= ENV['GUNSMITH_DB_PASSWORD'] %>
+  database: <%= ENV['GUNSMITH_DB_NAME'] %>
 
