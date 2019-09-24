@@ -13,7 +13,7 @@ module Gunsmith
     BOT_USERNAME      = (ENV['GUNSMITH_BOT_USERNAME'] || 'banshee-44')
 
 
-    def initialize(prefix: '!')
+    def initialize()
       raise 'DISCORD_API_KEY not set' unless ENV['DISCORD_API_TOKEN'].present?
 
       @bot = Discordrb::Bot.new token: ENV['DISCORD_API_TOKEN'], name: BOT_NAME, client_id: DISCORD_CLIENT_ID
@@ -38,21 +38,31 @@ module Gunsmith
         if args[0].downcase == 'help'
 
           event&.channel&.send_message <<HELP
-To show off your weapon/armor, message the bot with your gamertag, network, and weapon/armor slot, separated by spaces. The bot will always look at the *most recently played character* on your account.
-The standard usage looks like this: ```#{@prefix}show MyGamerTag playstation kinetic```
+            To show off your weapon/armor, message the bot with your gamertag, network, and weapon/armor slot, separated by spaces. The bot will always look at the *most recently played character* on your account.
+            The standard usage looks like this:
 
-If your gamertag is the same as your Discord username, you can omit this: ```#{@prefix}show playstation helmet```
+            ```@#{BOT_USERNAME} <gamertag> <platform> <slot>```
 
-If your gamertag only exists on one network, that can be omitted as well: ```#{@prefix}show heavy```
+            For example:
 
-Alternatively, instead of a specific slot, you can say `weapons`, `armor`, or `loadout`, and you'll get a complete summary of every currently equipped weapon, armor piece, or both.
+            ```@#{BOT_USERNAME} MyGamertag battlenet kinetic```
 
-The full list of supported slots is:```#{Bungie::Api::ITEM_BUCKET_IDS.values.map { |bucket_id| Bungie::Api.get_bucket_code(bucket_id) }.reject(&:blank?).join(', ')}, weapons, armor, loadout```
+            If your gamertag only exists on one network, that can be omitted:
 
-*Special note to Xbox Users:*
-If your gamertag has any spaces in it, these will need to be substituted with underscores (\"_\") in order for the bot to recognize the input properly.
-This is only required when inputting the gamertag manually however; spaces are fine in your Slack title.\n\n
-_Keep that thing oiled, guardian._
+            ```@#{BOT_USERNAME} MyGamertag heavy```
+
+            If you've registered with the bot (`@#{BOT_USERNAME} register <gamertag> <platform>`) then you can simply list the slot to display:
+
+            ```@#{BOT_USERNAME} helmet```
+
+            Alternatively, instead of a specific slot, you can say `weapons`, `armor`, or `loadout`, and you'll get a complete summary of every currently equipped weapon, armor piece, or both.
+
+            The full list of supported slots is:```#{Bungie::Api::ITEM_BUCKET_IDS.values.map { |bucket_id| Bungie::Api.get_bucket_code(bucket_id) }.reject(&:blank?).join(', ')}, weapons, armor, loadout```
+
+            *Special note to Xbox Users:*
+            If your gamertag has any spaces in it, these will need to be substituted with underscores (`_`) in order for the bot to recognize the input properly.
+
+            _Keep that thing oiled, guardian._
 HELP
           next
 
