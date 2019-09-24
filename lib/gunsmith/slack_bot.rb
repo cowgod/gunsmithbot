@@ -8,8 +8,16 @@ module Gunsmith
     BOT_ICON_URL = 'http://binrock.net/banshee44.png'.freeze
     BOT_USERNAME = (ENV['GUNSMITH_BOT_USERNAME'] || 'banshee-44')
 
+    IGNORED_CHANNELS = [
+      'C13V2MUBA' # FPVChat #gaming
+    ].freeze
+
 
     command 'help' do |client, data, _|
+      # Don't respond in FPVChat #gaming
+      next if IGNORED_CHANNELS.include? data.channel
+
+
       output = <<~HELP
         To show off your weapon/armor, message the bot with your gamertag, network, and weapon/armor slot, separated by spaces. The bot will always look at the *most recently played character* on your account.
         The standard usage looks like this:
@@ -43,6 +51,10 @@ module Gunsmith
 
 
     command 'register' do |client, data, _|
+      # Don't respond in ignored channels
+      next if IGNORED_CHANNELS.include? data.channel
+
+
       # Make it look like we're typing
       client.typing(channel: data.channel)
 
@@ -93,6 +105,10 @@ module Gunsmith
 
 
     command(/.*/) do |client, data, _|
+      # Don't respond in ignored channels
+      next if IGNORED_CHANNELS.include? data.channel
+
+
       # Make it look like we're typing
       client.typing(channel: data.channel)
 
