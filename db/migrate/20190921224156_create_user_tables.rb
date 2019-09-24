@@ -53,7 +53,8 @@ class CreateUserTables < ActiveRecord::Migration[6.0]
 
     create_table :discord_users do |t|
       t.string :user_id
-      t.references :bungie_user, foreign_key: true, null: false
+      t.string :username
+      t.references :bungie_user, foreign_key: true, null: true
 
       t.timestamps
     end

@@ -72,7 +72,12 @@ module Bungie
 
       raise QueryError, "Couldn't find the requested user." unless user_row
 
-      BungieUser.find_or_create_by(membership_id: user_row.dig('membershipId'))
+      user                 = BungieUser.find_or_create_by(membership_id: user_row.dig('membershipId'))
+      user.membership_type = user_row.dig('membershipType')
+      user.display_name    = user_row.dig('displayName')
+      user.save
+
+      user
     end
   end
 end

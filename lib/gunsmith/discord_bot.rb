@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 require 'discordrb'
 require 'discordrb/webhooks'
 
@@ -18,8 +16,7 @@ module Gunsmith
     def initialize(prefix: '!')
       raise 'DISCORD_API_KEY not set' unless ENV['DISCORD_API_TOKEN'].present?
 
-      @prefix = prefix
-      @bot    = Discordrb::Commands::CommandBot.new token: ENV['DISCORD_API_TOKEN'], prefix: @prefix, name: BOT_NAME, client_id: DISCORD_CLIENT_ID
+      @bot = Discordrb::Bot.new token: ENV['DISCORD_API_TOKEN'], name: BOT_NAME, client_id: DISCORD_CLIENT_ID
 
 
       # Here we output the invite URL to the console so the bot account can be invited to the channel. This only has to be
@@ -27,13 +24,20 @@ module Gunsmith
       puts "This bot's invite URL is #{@bot.invite_url}"
       puts 'Click on it to invite it to your server.'
 
-      # @bot.message(with_text: 'Ping!') do |event|
-      #   event.respond 'Pong!'
-      # end
+
+      @bot.mention do |event|
+        # Make it look like we're typing
+        event&.channel&.start_typing
 
 
-      @bot.command :help do
-        <<HELP
+        # Split the input into words, and strip out the element that represents
+        # our own userid (which will look something like '<@UCNTC2YH0>')
+        args = event.message.content&.split(/\s+/)&.grep_v(/^<@[A-Z0-9]+>$/)
+
+
+        if args[0].downcase == 'help'
+
+          event&.channel&.send_message <<HELP
 To show off your weapon/armor, message the bot with your gamertag, network, and weapon/armor slot, separated by spaces. The bot will always look at the *most recently played character* on your account.
 The standard usage looks like this: ```#{@prefix}show MyGamerTag playstation kinetic```
 
@@ -42,69 +46,129 @@ If your gamertag is the same as your Discord username, you can omit this: ```#{@
 If your gamertag only exists on one network, that can be omitted as well: ```#{@prefix}show heavy```
 
 Alternatively, instead of a specific slot, you can say `weapons`, `armor`, or `loadout`, and you'll get a complete summary of every currently equipped weapon, armor piece, or both.
-      
+
 The full list of supported slots is:```#{Bungie::Api::ITEM_BUCKET_IDS.values.map { |bucket_id| Bungie::Api.get_bucket_code(bucket_id) }.reject(&:blank?).join(', ')}, weapons, armor, loadout```
-      
+
 *Special note to Xbox Users:*
 If your gamertag has any spaces in it, these will need to be substituted with underscores (\"_\") in order for the bot to recognize the input properly.
 This is only required when inputting the gamertag manually however; spaces are fine in your Slack title.\n\n
 _Keep that thing oiled, guardian._
 HELP
-      end
+          next
 
-      @bot.command :show do |event, *args|
-        results = nil
+        elsif args[0].downcase == 'register'
 
-        # Make it look like we're typing
-        event&.channel&.start_typing
 
-        begin
-          case args.length
-          when 1
-            # If they didn't provide a gamertag, use the first name of the Slack
-            # user. If it's not set, use their title ("What I do")
+          # Start out our response by tagging the user that messaged us
+          message_text = ''
+          message_text += "<@#{event&.user&.id}>: " unless event&.user.blank?
 
-            # TODO - figure out what field we can use in Discord for this
-            # requested_gamertag = client.store.users[data.user][:profile][:title] || client.store.users[data.user][:name]
-            requested_gamertag = event.user.name
-            requested_platform = nil
-            requested_slot     = args[0]
-          when 2
-            requested_gamertag = args[0]
-            requested_platform = nil
-            requested_slot     = args[1]
-          when 3
-            requested_gamertag = args[0]
-            requested_platform = args[1]
-            requested_slot     = args[2]
-          else
-            raise QueryError, 'Wrong number of arguments.'
+          requested_gamertag = args[1]
+          requested_platform = args[2]
+
+          unless requested_gamertag && requested_platform
+            message_text += "Usage: `@#{BOT_USERNAME} register <gamertag> <platform>`"
+            event&.channel&.send_message message_text
+            next
           end
 
+          begin
+            results = Gunsmith::Bot.instance.query_user_and_platform(requested_gamertag, requested_platform)
+          rescue QueryError => e
+            message_text += "Couldn't find a user for gamertag '#{requested_gamertag}' on platform '#{requested_platform}'."
+            event&.channel&.send_message message_text
+            next
+          end
 
-          case requested_slot.strip.downcase
-          when 'loadout', 'weapons', 'weapon', 'guns', 'gun', 'armor'
-            case requested_slot.strip.downcase
-            when 'weapons', 'weapon', 'guns', 'gun'
-              loadout_type = :weapons
-            when 'armor'
-              loadout_type = :armor
+          # Be sure we actually got a Bungie.net user back
+          unless results[:bungie_user]
+            message_text += "Couldn't find a user for gamertag '#{requested_gamertag}' on platform '#{requested_platform}'."
+            event&.channel&.send_message message_text
+            next
+          end
+
+          # Associate the specified Bungie.net user with the slack user who made the request
+          user             = Discord::DiscordUser.find_or_create_by(user_id: event.message.author.id)
+          user.username    = event.message.author.username
+          user.bungie_user = results[:bungie_user]
+          user.save
+
+
+          message_text += "Successfully registered you with gamertag '#{results[:bungie_user].gamertag}' on platform '#{results[:bungie_user].platform}'."
+
+          message_text.strip!
+
+          event&.channel&.send_message message_text
+
+        else
+
+          begin
+            bungie_user = nil
+
+
+            case args.length
+            when 1
+              requested_gamertag = nil
+              requested_platform = nil
+              requested_slot     = args[0]
+
+              # If they just provided a slot, see if they're registered with us
+              user        = Discord::DiscordUser.find_by(user_id: event.message.author.id)
+              bungie_user = user&.bungie_user
+            when 2
+              requested_gamertag = args[0]
+              requested_platform = nil
+              requested_slot     = args[1]
+            when 3
+              requested_gamertag = args[0]
+              requested_platform = args[1]
+              requested_slot     = args[2]
             else
-              loadout_type = :full
+              raise ArgumentError, 'Wrong number of arguments.'
             end
 
-            results = Gunsmith::Bot.instance.query_loadout(requested_gamertag, requested_platform, loadout_type)
-            break if results.blank?
 
-            loadout_response(event, results, loadout_type)
-          else
-            results = Gunsmith::Bot.instance.query(requested_gamertag, requested_platform, requested_slot)
-            break if results.blank?
+            # If they aren't registered with us, see if we can find the user in the API
+            if !bungie_user && requested_gamertag
+              bungie_user = Bungie::BungieUser.search_user_by_gamertag_and_platform(requested_gamertag, requested_platform)
+            end
 
-            single_slot_response(event, results)
+            # If we still didn't find it, print an error
+            unless bungie_user
+              print_unregistered_user_message(event: event)
+              break
+            end
+
+            unless requested_slot
+              print_usage(event: event, additional_message: message)
+              break
+            end
+
+            case requested_slot.strip.downcase
+            when 'loadout', 'weapons', 'weapon', 'guns', 'gun', 'armor'
+              case requested_slot.strip.downcase
+              when 'weapons', 'weapon', 'guns', 'gun'
+                loadout_type = :weapons
+              when 'armor'
+                loadout_type = :armor
+              else
+                loadout_type = :full
+              end
+
+              results = Gunsmith::Bot.instance.query_loadout(bungie_user, loadout_type)
+              break if results.blank?
+
+              loadout_response(event, results, loadout_type)
+            else
+              results = Gunsmith::Bot.instance.query(bungie_user, requested_slot)
+              break if results.blank?
+
+              single_slot_response(event, results)
+            end
+          rescue QueryError => e
+            print_usage(event: event, additional_message: e)
           end
-        rescue QueryError => message
-          print_usage(event: event, additional_message: message)
+
         end
 
         nil
@@ -118,7 +182,7 @@ HELP
 
 
       message_text = "<@#{event&.user&.id}>: "
-      message_text += "`#{results[:gamertag]} #{results[:platform]} #{results[:slot]}`\n"
+      message_text += "`#{results[:bungie_user].gamertag} #{results[:bungie_user].platform} #{results[:slot]}`\n"
 
       if results[:gamertag_suggestions].present?
         message_text += 'Gamertag Suggestions: '
@@ -228,20 +292,20 @@ HELP
     def loadout_response(event, results, type = :full)
       # Prepare output
 
-      case type
+      canonical_loadout_type = case type
       when :weapons
-        canonical_loadout_type = 'weapons'
+        'weapons'
       when :armor
-        canonical_loadout_type = 'armor'
+        'armor'
       else
-        canonical_loadout_type = 'loadout'
+        'loadout'
       end
 
       message_text = "<@#{event&.user&.id}>: "
-      message_text += "`#{results[:gamertag]} #{results[:platform]} #{canonical_loadout_type}`\n"
+      message_text += "`#{results[:bungie_user].gamertag} #{results[:bungie_user].platform} #{canonical_loadout_type}`\n"
 
 
-      unless results[:gamertag_suggestions]&.blank?
+      if results[:gamertag_suggestions]&.present?
         message_text += 'Gamertag Suggestions: '
 
         message_text += results[:gamertag_suggestions]
@@ -350,6 +414,23 @@ HELP
 
     def run
       @bot.run
+    end
+
+    def print_unregistered_user_message(event:)
+      # Be sure we have a webhook connection available to respond with
+      # return unless @webhook_clients[event&.channel&.id].present?
+
+      output = ''
+
+      output += "<@#{event&.user&.id}>: " unless event&.user.blank?
+
+      output += "Memory's not what it used to be. Who're you again?\n"
+      output += "Use `@#{BOT_USERNAME} register <gamertag> <platform>` to register your Bungie.net profile.\n"
+      output += "Use the 'help' command for more info."
+
+      output.strip!
+
+      event&.channel&.send_message output
     end
 
     def print_usage(event:, additional_message:)

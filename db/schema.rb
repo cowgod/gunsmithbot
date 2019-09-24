@@ -38,7 +38,8 @@ ActiveRecord::Schema.define(version: 2019_09_21_224156) do
 
   create_table "discord_users", options: "ENGINE=InnoDB DEFAULT CHARSET=utf8", force: :cascade do |t|
     t.string "user_id"
-    t.bigint "bungie_user_id", null: false
+    t.string "username"
+    t.bigint "bungie_user_id"
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
     t.index ["bungie_user_id"], name: "index_discord_users_on_bungie_user_id"

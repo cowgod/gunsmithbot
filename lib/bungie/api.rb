@@ -299,6 +299,7 @@ module Bungie
       )
 
       characters = response.parsed_response['Response']&.dig('characters', 'data')
+      return nil unless characters
 
       characters.each_key do |character_id|
         characters[character_id]['items'] = response.parsed_response['Response']&.dig('characterEquipment', 'data', character_id, 'items')
