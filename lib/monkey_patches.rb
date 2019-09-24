@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module PresenceUtils
   def blank?
     respond_to?(:empty?) ? !!empty? : !self

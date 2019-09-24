@@ -1,0 +1,22 @@
+default: &default
+  adapter: mysql2
+  encoding: utf8
+  host:     localhost
+  username: gunsmith
+  password: INSECURE_DEV_PASSWORD
+  pool: 5
+  timeout: 5000
+
+development:
+  <<: *default
+  database: gunsmith_development
+
+test:
+  <<: *default
+  database: gunsmith_test
+
+production:
+  <<: *default
+  database: gunsmith
+  password: <%= ENV['GUNSMITH_DB_PASSWORD'] %>
+
