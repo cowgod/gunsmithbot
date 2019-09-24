@@ -14,7 +14,7 @@ module Gunsmith
 
 
     command 'help' do |client, data, _|
-      # Don't respond in FPVChat #gaming
+      # Don't respond in ignored channels
       next if IGNORED_CHANNELS.include? data.channel
 
 
@@ -42,6 +42,8 @@ module Gunsmith
 
         *Special note to Xbox Users:*
         If your gamertag has any spaces in it, these will need to be substituted with underscores (`_`) in order for the bot to recognize the input properly.
+
+        GitHub Repository: #{Gunsmith::Bot::BOT_GITHUB_URL}
 
         _Keep that thing oiled, guardian._
       HELP

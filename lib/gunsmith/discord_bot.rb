@@ -62,6 +62,8 @@ module Gunsmith
             *Special note to Xbox Users:*
             If your gamertag has any spaces in it, these will need to be substituted with underscores (`_`) in order for the bot to recognize the input properly.
 
+            GitHub Repository: #{Gunsmith::Bot::BOT_GITHUB_URL}
+
             _Keep that thing oiled, guardian._
 HELP
           next

@@ -6,6 +6,8 @@ require 'pp'
 module Gunsmith
   # The core class representing the bot's main interface
   class Bot
+    BOT_GITHUB_URL = 'https://github.com/cowgod/gunsmithbot'
+
     include Singleton
 
     def query_user_and_platform(requested_gamertag, requested_platform)
