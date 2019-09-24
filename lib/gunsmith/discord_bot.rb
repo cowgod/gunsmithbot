@@ -453,7 +453,7 @@ HELP
       output += additional_message.to_s unless additional_message.blank?
       output += "\n"
 
-      output += "Usage: #{@prefix}show <gamertag> <platform> <slot>\n"
+      output += "Usage: `@#{BOT_USERNAME} <gamertag> <platform> <slot>`\n"
       output += "Please use the 'help' command for more info."
 
       output.strip!

@@ -2,7 +2,7 @@
 
 export BUNGIE_API_TOKEN=<xxxxxxx>
 export GUNSMITH_BOT_USERNAME=<xxxxxxx>
-export ENVIRONMENT=production
+export RAILS_ENV=production
 export GUNSMITH_DB_HOST=<xxxxxxx>
 export GUNSMITH_DB_USERNAME=<xxxxxxx>
 export GUNSMITH_DB_PASSWORD=<xxxxxxx>
