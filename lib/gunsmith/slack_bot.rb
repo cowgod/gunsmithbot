@@ -14,10 +14,6 @@ module Gunsmith
 
 
     command 'help' do |client, data, _|
-      # Don't respond in ignored channels
-      next if IGNORED_CHANNELS.include? data.channel
-
-
       output = <<~HELP
         To show off your weapon/armor, message the bot with your gamertag, network, and weapon/armor slot, separated by spaces. The bot will always look at the *most recently played character* on your account.
         The standard usage looks like this:
@@ -48,7 +44,13 @@ module Gunsmith
         _Keep that thing oiled, guardian._
       HELP
 
-      client.say(text: output, channel: data.channel)
+
+      # Respond via DM
+      client.web_client.chat_postMessage(
+        channel: data.user,
+        as_user: true,
+        text:    output
+      )
     end
 
 

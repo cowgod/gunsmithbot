@@ -37,7 +37,7 @@ module Gunsmith
 
         if args[0].downcase == 'help'
 
-          event&.channel&.send_message <<HELP
+          output = <<HELP
             To show off your weapon/armor, message the bot with your gamertag, network, and weapon/armor slot, separated by spaces. The bot will always look at the *most recently played character* on your account.
             The standard usage looks like this:
 
@@ -66,6 +66,10 @@ module Gunsmith
 
             _Keep that thing oiled, guardian._
 HELP
+
+
+          # Respond via DM
+          event.user.pm output
           next
 
         elsif args[0].downcase == 'register'
