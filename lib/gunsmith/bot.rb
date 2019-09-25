@@ -28,9 +28,9 @@ module Gunsmith
       results[:gamertag] = results[:user_info]&.dig('displayName')
       results[:platform] = Bungie::Api.get_platform_code(results[:user_info]&.dig('membershipType'))
 
-      results[:bungie_user] = Bungie::BungieUser.find_or_create_by(membership_id: results[:user_info]&.dig('membershipId')) do |new_user|
-        new_user.membership_type = results[:user_info]&.dig('membershipType')
-        new_user.display_name    = results[:user_info]&.dig('displayName')
+      results[:bungie_membership] = Bungie::BungieMembership.find_or_create_by(membership_id: results[:user_info]&.dig('membershipId')) do |new_membership|
+        new_membership.membership_type = results[:user_info]&.dig('membershipType')
+        new_membership.display_name    = results[:user_info]&.dig('displayName')
       end
 
       results
@@ -49,21 +49,21 @@ module Gunsmith
     end
 
 
-    def query(bungie_user, requested_slot)
+    def query(bungie_membership, requested_slot)
       results = {}
 
-      results[:bungie_user] = bungie_user
+      results[:bungie_membership] = bungie_membership
 
       slot_results = query_slot(requested_slot)
       results.merge!(slot_results)
 
-      character = bungie_user.load_active_character_with_equipment
+      character = bungie_membership.load_active_character_with_equipment
       raise QueryError, "Couldn't find the most recently used character for the requested user." unless character
 
       requested_item = character.item_rows.find { |item| item.dig('bucketHash') == slot_results[:bucket_id] }
       raise QueryError, "Couldn't find the requested item or armor piece." unless requested_item
 
-      results[:item] = Bungie::Api.instance.item_details(bungie_user.membership_type, bungie_user.membership_id, requested_item['itemInstanceId'])
+      results[:item] = Bungie::Api.instance.item_details(bungie_membership.membership_type, bungie_membership.membership_id, requested_item['itemInstanceId'])
       raise QueryError, "Couldn't load info for the requested item or armor piece." unless results[:item]
 
       results
@@ -82,12 +82,12 @@ module Gunsmith
     end
 
 
-    def query_loadout(bungie_user, type = :full)
+    def query_loadout(bungie_membership, type = :full)
       results = {}
 
-      results[:bungie_user] = bungie_user
+      results[:bungie_membership] = bungie_membership
 
-      character = bungie_user.load_active_character_with_equipment
+      character = bungie_membership.load_active_character_with_equipment
       raise QueryError, "Couldn't find the most recently used character for the requested user." unless character
 
       results[:slots] = {}
@@ -102,7 +102,7 @@ module Gunsmith
         requested_item = character.item_rows.find { |item| item.dig('bucketHash') == slot_results[:bucket_id] }
         raise QueryError, "Couldn't find the requested item or armor piece." unless requested_item
 
-        results[:slots][slot] = Bungie::Api.instance.item_details(bungie_user.membership_type, bungie_user.membership_id, requested_item['itemInstanceId'])
+        results[:slots][slot] = Bungie::Api.instance.item_details(bungie_membership.membership_type, bungie_membership.membership_id, requested_item['itemInstanceId'])
         raise QueryError, "Couldn't load info for the requested item or armor piece." unless results[:slots][slot]
       end
 

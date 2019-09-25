@@ -87,8 +87,8 @@ module Gunsmith
         break
       end
 
-      # Be sure we actually got a Bungie.net user back
-      unless results[:bungie_user]
+      # Be sure we actually got a Bungie.net membership back
+      unless results[:bungie_membership]
         message_text += "Couldn't find a user for gamertag '#{requested_gamertag}' on platform '#{requested_platform}'."
         client.say(text: message_text, channel: data.channel)
         break
@@ -97,12 +97,12 @@ module Gunsmith
       team = load_and_update_team(client.team.id, client.team.name, client.team.domain)
 
       # Associate the specified Bungie.net user with the slack user who made the request
-      user             = Slack::SlackUser.find_or_create_by(slack_team: team, user_id: data.user)
-      user.bungie_user = results[:bungie_user]
+      user                   = Slack::SlackUser.find_or_create_by(slack_team: team, user_id: data.user)
+      user.bungie_membership = results[:bungie_membership]
       user.save
 
 
-      message_text += "Successfully registered you with gamertag '#{results[:bungie_user].gamertag}' on platform '#{results[:bungie_user].platform}'."
+      message_text += "Successfully registered you with gamertag '#{results[:bungie_membership].gamertag}' on platform '#{results[:bungie_membership].platform}'."
 
       client.say(text: message_text, channel: data.channel)
     end
@@ -117,7 +117,7 @@ module Gunsmith
       client.typing(channel: data.channel)
 
       begin
-        bungie_user = nil
+        bungie_membership = nil
 
 
         # Split the input into words, and strip out the element that represents our own
@@ -131,9 +131,9 @@ module Gunsmith
           requested_slot     = args[0]
 
           # If they just provided a slot, see if they're registered with us
-          team        = Slack::SlackTeam.find_by(team_id: client.team.id)
-          user        = Slack::SlackUser.find_by(slack_team: team, user_id: data.user)
-          bungie_user = user&.bungie_user
+          team              = Slack::SlackTeam.find_by(team_id: client.team.id)
+          user              = Slack::SlackUser.find_by(slack_team: team, user_id: data.user)
+          bungie_membership = user&.bungie_membership
         when 2
           requested_gamertag = args[0]
           requested_platform = nil
@@ -148,12 +148,12 @@ module Gunsmith
 
 
         # If they aren't registered with us, see if we can find the user in the API
-        if !bungie_user && requested_gamertag
-          bungie_user = Bungie::BungieUser.search_user_by_gamertag_and_platform(requested_gamertag, requested_platform)
+        if !bungie_membership && requested_gamertag
+          bungie_membership = Bungie::BungieMembership.search_membership_by_gamertag_and_platform(requested_gamertag, requested_platform)
         end
 
         # If we still didn't find it, print an error
-        unless bungie_user
+        unless bungie_membership
           print_unregistered_user_message(client, data)
           break
         end
@@ -174,12 +174,12 @@ module Gunsmith
             loadout_type = :full
           end
 
-          results = Gunsmith::Bot.instance.query_loadout(bungie_user, loadout_type)
+          results = Gunsmith::Bot.instance.query_loadout(bungie_membership, loadout_type)
           break if results.blank?
 
           loadout_response(client, data, results, loadout_type)
         else
-          results = Gunsmith::Bot.instance.query(bungie_user, requested_slot)
+          results = Gunsmith::Bot.instance.query(bungie_membership, requested_slot)
           break if results.blank?
 
           single_slot_response(client, data, results)
@@ -197,7 +197,7 @@ module Gunsmith
 
       message_text = ''
       message_text += "<@#{data&.user}>: " unless data&.user&.blank?
-      message_text += "`#{results[:bungie_user].gamertag} #{results[:bungie_user].platform} #{results[:slot]}`\n"
+      message_text += "`#{results[:bungie_membership].gamertag} #{results[:bungie_membership].platform} #{results[:slot]}`\n"
 
       if results[:gamertag_suggestions]&.present?
         message_text += 'Gamertag Suggestions: '
@@ -318,7 +318,7 @@ module Gunsmith
 
       message_text = ''
       message_text += "<@#{data&.user}>: " unless data&.user&.blank?
-      message_text += "`#{results[:bungie_user].gamertag} #{results[:bungie_user].platform} #{canonical_loadout_type}`\n"
+      message_text += "`#{results[:bungie_membership].gamertag} #{results[:bungie_membership].platform} #{canonical_loadout_type}`\n"
 
       if results[:gamertag_suggestions]&.present?
         message_text += 'Gamertag Suggestions: '

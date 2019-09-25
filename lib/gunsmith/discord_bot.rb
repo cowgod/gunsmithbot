@@ -96,21 +96,21 @@ HELP
             next
           end
 
-          # Be sure we actually got a Bungie.net user back
-          unless results[:bungie_user]
+          # Be sure we actually got a Bungie.net membership back
+          unless results[:bungie_membership]
             message_text += "Couldn't find a user for gamertag '#{requested_gamertag}' on platform '#{requested_platform}'."
             event&.channel&.send_message message_text
             next
           end
 
-          # Associate the specified Bungie.net user with the slack user who made the request
-          user             = Discord::DiscordUser.find_or_create_by(user_id: event.message.author.id)
-          user.username    = event.message.author.username
-          user.bungie_user = results[:bungie_user]
+          # Associate the specified Bungie.net membership with the slack user who made the request
+          user                   = Discord::DiscordUser.find_or_create_by(user_id: event.message.author.id)
+          user.username          = event.message.author.username
+          user.bungie_membership = results[:bungie_membership]
           user.save
 
 
-          message_text += "Successfully registered you with gamertag '#{results[:bungie_user].gamertag}' on platform '#{results[:bungie_user].platform}'."
+          message_text += "Successfully registered you with gamertag '#{results[:bungie_membership].gamertag}' on platform '#{results[:bungie_membership].platform}'."
 
           message_text.strip!
 
@@ -119,7 +119,7 @@ HELP
         else
 
           begin
-            bungie_user = nil
+            bungie_membership = nil
 
 
             case args.length
@@ -129,8 +129,8 @@ HELP
               requested_slot     = args[0]
 
               # If they just provided a slot, see if they're registered with us
-              user        = Discord::DiscordUser.find_by(user_id: event.message.author.id)
-              bungie_user = user&.bungie_user
+              user              = Discord::DiscordUser.find_by(user_id: event.message.author.id)
+              bungie_membership = user&.bungie_membership
             when 2
               requested_gamertag = args[0]
               requested_platform = nil
@@ -144,13 +144,13 @@ HELP
             end
 
 
-            # If they aren't registered with us, see if we can find the user in the API
-            if !bungie_user && requested_gamertag
-              bungie_user = Bungie::BungieUser.search_user_by_gamertag_and_platform(requested_gamertag, requested_platform)
+            # If they aren't registered with us, see if we can find the membership in the API
+            if !bungie_membership && requested_gamertag
+              bungie_membership = Bungie::BungieMembership.search_membership_by_gamertag_and_platform(requested_gamertag, requested_platform)
             end
 
             # If we still didn't find it, print an error
-            unless bungie_user
+            unless bungie_membership
               print_unregistered_user_message(event: event)
               break
             end
@@ -171,12 +171,12 @@ HELP
                 loadout_type = :full
               end
 
-              results = Gunsmith::Bot.instance.query_loadout(bungie_user, loadout_type)
+              results = Gunsmith::Bot.instance.query_loadout(bungie_membership, loadout_type)
               break if results.blank?
 
               loadout_response(event, results, loadout_type)
             else
-              results = Gunsmith::Bot.instance.query(bungie_user, requested_slot)
+              results = Gunsmith::Bot.instance.query(bungie_membership, requested_slot)
               break if results.blank?
 
               single_slot_response(event, results)
@@ -198,7 +198,7 @@ HELP
 
 
       message_text = "<@#{event&.user&.id}>: "
-      message_text += "`#{results[:bungie_user].gamertag} #{results[:bungie_user].platform} #{results[:slot]}`\n"
+      message_text += "`#{results[:bungie_membership].gamertag} #{results[:bungie_membership].platform} #{results[:slot]}`\n"
 
       if results[:gamertag_suggestions].present?
         message_text += 'Gamertag Suggestions: '
@@ -318,7 +318,7 @@ HELP
       end
 
       message_text = "<@#{event&.user&.id}>: "
-      message_text += "`#{results[:bungie_user].gamertag} #{results[:bungie_user].platform} #{canonical_loadout_type}`\n"
+      message_text += "`#{results[:bungie_membership].gamertag} #{results[:bungie_membership].platform} #{canonical_loadout_type}`\n"
 
 
       if results[:gamertag_suggestions]&.present?

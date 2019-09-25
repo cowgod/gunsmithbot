@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 module Bungie
-  # Represent a Bungie.net user
-  class BungieUser < ActiveRecord::Base
+  # Represent a Bungie.net membership
+  class BungieMembership < ActiveRecord::Base
     has_many :bungie_characters
     has_many :slack_users
     has_many :discord_users
@@ -44,7 +44,7 @@ module Bungie
       character_row = Bungie::Api.instance.active_char_with_equipment(membership_type, membership_id)
       raise QueryError, "Couldn't find the most recently used character for the requested user." unless character_row
 
-      character             = BungieCharacter.find_or_create_by(bungie_user: self, character_id: character_row.dig('characterId'))
+      character             = BungieCharacter.find_or_create_by(bungie_membership: self, character_id: character_row.dig('characterId'))
       character.race_hash   = character_row.dig('raceHash')
       character.race_name   = character_row.dig('raceHash') ###############
       character.class_hash  = character_row.dig('classHash')
@@ -59,7 +59,7 @@ module Bungie
       character
     end
 
-    def self.search_user_by_gamertag_and_platform(requested_gamertag, requested_platform)
+    def self.search_membership_by_gamertag_and_platform(requested_gamertag, requested_platform)
       user_row = Bungie::Api.instance.search_user(requested_gamertag, requested_platform)
 
       unless user_row
@@ -72,12 +72,12 @@ module Bungie
 
       raise QueryError, "Couldn't find the requested user." unless user_row
 
-      user                 = BungieUser.find_or_create_by(membership_id: user_row.dig('membershipId'))
-      user.membership_type = user_row.dig('membershipType')
-      user.display_name    = user_row.dig('displayName')
-      user.save
+      membership                 = BungieMembership.find_or_create_by(membership_id: user_row.dig('membershipId'))
+      membership.membership_type = user_row.dig('membershipType')
+      membership.display_name    = user_row.dig('displayName')
+      membership.save
 
-      user
+      membership
     end
   end
 end
