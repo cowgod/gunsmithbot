@@ -3,6 +3,7 @@
 module Bungie
   # Represent a Bungie.net membership
   class BungieMembership < ActiveRecord::Base
+    belongs_to :bungie_user
     has_many :bungie_characters
     has_many :slack_users
     has_many :discord_users
@@ -60,21 +61,58 @@ module Bungie
     end
 
     def self.search_membership_by_gamertag_and_platform(requested_gamertag, requested_platform)
-      user_row = Bungie::Api.instance.search_user(requested_gamertag, requested_platform)
+      membership_rows = Bungie::Api.instance.search_user(requested_gamertag, requested_platform)
 
-      unless user_row
-        search_results = TrialsReport::Api.search_user(requested_gamertag, requested_platform)
-        raise QueryError, "Couldn't find the requested user." unless search_results&.first
+      # unless user_row
+      #   search_results = TrialsReport::Api.search_user(requested_gamertag, requested_platform)
+      #   raise QueryError, "Couldn't find the requested user." unless search_results&.first
+      #
+      #   user_row = Bungie::Api.instance.search_user(search_results&.first&.dig('displayName'), requested_platform)
+      #   # results[:gamertag_suggestions] = search_results.map { |result| result&.dig('displayName') }
+      # end
 
-        user_row = Bungie::Api.instance.search_user(search_results&.first&.dig('displayName'), requested_platform)
-        # results[:gamertag_suggestions] = search_results.map { |result| result&.dig('displayName') }
+      raise QueryError, "Couldn't find the requested user." unless membership_rows
+      raise MultipleResultsError if membership_rows.count > 1
+
+      membership                 = BungieMembership.find_or_create_by(membership_id: membership_rows[0].dig('membershipId'))
+      membership.membership_type = membership_rows[0].dig('membershipType')
+      membership.display_name    = membership_rows[0].dig('displayName')
+      membership.save
+
+      membership
+    end
+
+
+    def self.search_membership_by_id_and_platform(membership_id, requested_platform)
+      # Transform the requested platform into a numeric ID
+      membership_type_id = Bungie::Api.get_membership_type_id(requested_platform) || -1
+
+
+      results = Bungie::Api.instance.get_memberships_for_membership_id(membership_id, requested_platform)
+
+      raise QueryError, "Couldn't find the requested user." unless results&.dig('destinyMemberships')
+
+      # Map the rows into a hash by their associated membership type
+      membership_rows = results&.dig('destinyMemberships').map { |row| [row.dig('membershipType'), row] }.to_h
+
+      if membership_rows.size == 1 || membership_type_id < 1
+        # If we just got a single result, or they didn't specify a platform, just use the first result
+        membership_row = membership_rows.shift[1]
+      else
+        # Otherwise, find the membership that matches the requested platform
+        membership_row = membership_rows[membership_type_id]
       end
 
-      raise QueryError, "Couldn't find the requested user." unless user_row
+      # Take into account any cross save override
+      if membership_row&.dig('crossSaveOverride').to_i && membership_rows[membership_row&.dig('crossSaveOverride').to_i]
+        membership_row = membership_rows[membership_row&.dig('crossSaveOverride').to_i]
+      end
 
-      membership                 = BungieMembership.find_or_create_by(membership_id: user_row.dig('membershipId'))
-      membership.membership_type = user_row.dig('membershipType')
-      membership.display_name    = user_row.dig('displayName')
+      raise QueryError, "Couldn't find the requested user." unless membership_row
+
+      membership                 = BungieMembership.find_or_create_by(membership_id: membership_row.dig('membershipId'))
+      membership.membership_type = membership_row.dig('membershipType')
+      membership.display_name    = membership_row.dig('displayName')
       membership.save
 
       membership

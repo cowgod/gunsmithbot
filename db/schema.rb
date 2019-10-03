@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2019_09_25_001417) do
+ActiveRecord::Schema.define(version: 2019_09_25_020935) do
 
   create_table "bungie_characters", options: "ENGINE=InnoDB DEFAULT CHARSET=utf8", force: :cascade do |t|
     t.bigint "bungie_membership_id", null: false
@@ -33,7 +33,24 @@ ActiveRecord::Schema.define(version: 2019_09_25_001417) do
     t.string "display_name"
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
+    t.bigint "bungie_user_id"
+    t.index ["bungie_user_id"], name: "index_bungie_memberships_on_bungie_user_id"
     t.index ["membership_id"], name: "index_bungie_memberships_on_membership_id", unique: true
+  end
+
+  create_table "bungie_users", options: "ENGINE=InnoDB DEFAULT CHARSET=utf8", force: :cascade do |t|
+    t.string "membership_id"
+    t.string "unique_name"
+    t.string "display_name"
+    t.string "normalized_name"
+    t.string "psn_display_name"
+    t.string "xbox_display_name"
+    t.string "blizzard_display_name"
+    t.string "steam_display_name"
+    t.string "stadia_display_name"
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index ["membership_id"], name: "index_bungie_users_on_membership_id", unique: true
   end
 
   create_table "discord_users", options: "ENGINE=InnoDB DEFAULT CHARSET=utf8", force: :cascade do |t|
@@ -67,6 +84,7 @@ ActiveRecord::Schema.define(version: 2019_09_25_001417) do
   end
 
   add_foreign_key "bungie_characters", "bungie_memberships"
+  add_foreign_key "bungie_memberships", "bungie_users"
   add_foreign_key "discord_users", "bungie_memberships"
   add_foreign_key "slack_users", "bungie_memberships"
   add_foreign_key "slack_users", "slack_teams"

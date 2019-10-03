@@ -196,7 +196,9 @@ module Bungie
       None:          0,
       TigerXbox:     1,
       TigerPsn:      2,
+      TigerSteam:    3,
       TigerBlizzard: 4,
+      TigerStadia:   5,
       TigerDemon:    10,
       BungieNext:    254,
       All:           -1
@@ -243,6 +245,20 @@ module Bungie
       initialize_manifest
     end
 
+    def get_memberships_for_membership_id(membership_id, requested_platform = nil)
+      # If they didn't give us a membership_id to search, there's nothing we can do
+      return nil unless membership_id
+
+      # Transform the requested platform into a numeric ID
+      membership_type_id = Bungie::Api.get_membership_type_id(requested_platform) || -1
+
+      url      = "/User/GetMembershipsById/#{URI.escape(membership_id.to_s)}/#{URI.escape(membership_type_id.to_s)}/"
+      response = self.class.get(url, @options)
+
+      response ? response.parsed_response&.dig('Response') : []
+    end
+
+
     def search_user(requested_gamertag, requested_platform = nil)
       # If they didn't give us a gamertag to search, there's nothing we can do
       return nil unless requested_gamertag
@@ -253,19 +269,19 @@ module Bungie
       url      = "/Destiny2/SearchDestinyPlayer/#{URI.escape(membership_type_id.to_s)}/#{URI.escape(requested_gamertag.to_s)}/"
       response = self.class.get(url, @options)
 
-      user = response ? response.parsed_response&.dig('Response', 0) : nil
+      response ? response.parsed_response&.dig('Response') : []
 
-      unless user
-        # Try again after replacing underscores with spaces, for XBox GamerTags
-        requested_gamertag.tr!('_', ' ')
+      # unless user
+      #   # Try again after replacing underscores with spaces, for XBox GamerTags
+      #   requested_gamertag.tr!('_', ' ')
+      #
+      #   url      = "/Destiny2/SearchDestinyPlayer/#{URI.escape(membership_type_id.to_s)}/#{URI.escape(requested_gamertag.to_s)}/"
+      #   response = self.class.get(url, @options)
+      #
+      #   user = response ? response.parsed_response['Response'][0] : nil
+      # end
 
-        url      = "/Destiny2/SearchDestinyPlayer/#{URI.escape(membership_type_id.to_s)}/#{URI.escape(requested_gamertag.to_s)}/"
-        response = self.class.get(url, @options)
-
-        user = response ? response.parsed_response['Response'][0] : nil
-      end
-
-      user
+      # user
     end
 
 
@@ -516,14 +532,63 @@ module Bungie
     end
 
 
+    # def get_user_for_membership_id(membership_id)
+    #   url      = "/User/GetBungieNetUserById/#{URI.escape(membership_id.to_s)}/"
+    #   response = self.class.get(url, @options)
+    #
+    #   results = response.parsed_response['Response']
+    #
+    # end
+
+
+    ### UNSUPPORTED ENDPOINT, DON'T USE
+    def get_user_for_id(id)
+      url      = "/User/GetBungieAccount/#{URI.escape(id.to_s)}/254/"
+      response = self.class.get(url, @options)
+
+      results = response.parsed_response['Response']
+
+    end
+
+
+    def get_xxxx
+      'https://www.bungie.net/Platform/User/15274884/Partnerships/'
+
+      url      = "/Destiny2/#{URI.escape(membership_type.to_s)}/Profile/#{URI.escape(membership_id.to_s)}/Item/#{URI.escape(item_instance_id.to_s)}/"
+      response = self.class.get(
+        url,
+        @options.merge(
+          query: {
+            components: [
+                          COMPONENTS[:ItemInstances],
+                          COMPONENTS[:ItemPerks],
+                          COMPONENTS[:ItemStats],
+
+                          COMPONENTS[:ItemSockets],
+                          COMPONENTS[:ItemCommonData],
+                          COMPONENTS[:ItemPlugStates]
+                        ].join(',')
+          }
+        )
+      )
+
+      item_instance = response.parsed_response['Response']
+
+    end
+
+
     def self.get_membership_type_id(membership_type)
       case membership_type.to_s.strip.downcase
       when 'playstation', 'ps4', 'ps3', 'ps'
         MEMBERSHIP_TYPES[:TigerPsn]
       when 'xbox', 'xb1', 'xb'
         MEMBERSHIP_TYPES[:TigerXbox]
-      when 'battlenet', 'bnet', 'blizzard', 'blizard', 'pc'
+      when 'steam', 'valve', 'computer', 'pc'
+        MEMBERSHIP_TYPES[:TigerSteam]
+      when 'battlenet', 'bnet', 'blizzard', 'blizard'
         MEMBERSHIP_TYPES[:TigerBlizzard]
+      when 'stadia', 'google', 'browser'
+        MEMBERSHIP_TYPES[:TigerStadia]
       end
     end
 
@@ -536,6 +601,10 @@ module Bungie
         'xbox'
       when MEMBERSHIP_TYPES[:TigerBlizzard]
         'battlenet'
+      when MEMBERSHIP_TYPES[:TigerSteam]
+        'steam'
+      when MEMBERSHIP_TYPES[:TigerStadia]
+        'stadia'
       end
     end
 

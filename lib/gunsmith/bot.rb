@@ -10,32 +10,6 @@ module Gunsmith
 
     include Singleton
 
-    def query_user_and_platform(requested_gamertag, requested_platform)
-      results = { gamertag_suggestions: [] }
-
-      results[:user_info] = Bungie::Api.instance.search_user(requested_gamertag, requested_platform)
-
-      unless results[:user_info]
-        search_results = TrialsReport::Api.search_user(requested_gamertag, requested_platform)
-        raise QueryError, "Couldn't find the requested user." unless search_results&.first
-
-        results[:user_info]            = Bungie::Api.instance.search_user(search_results&.first&.dig('displayName'), requested_platform)
-        results[:gamertag_suggestions] = search_results.map { |result| result&.dig('displayName') }
-      end
-
-      raise QueryError, "Couldn't find the requested user." unless results[:user_info]
-
-      results[:gamertag] = results[:user_info]&.dig('displayName')
-      results[:platform] = Bungie::Api.get_platform_code(results[:user_info]&.dig('membershipType'))
-
-      results[:bungie_membership] = Bungie::BungieMembership.find_or_create_by(membership_id: results[:user_info]&.dig('membershipId')) do |new_membership|
-        new_membership.membership_type = results[:user_info]&.dig('membershipType')
-        new_membership.display_name    = results[:user_info]&.dig('displayName')
-      end
-
-      results
-    end
-
 
     def query_slot(requested_slot)
       results = {}
