@@ -22,22 +22,26 @@ module Gunsmith
 
         For example:
 
-        ```@#{BOT_USERNAME} MyGamertag battlenet kinetic```
+        ```@#{BOT_USERNAME} MyGamertag steam kinetic```
 
-        If your gamertag only exists on one network, that can be omitted:
+        If your gamertag only exists on one platform, that can be omitted:
 
-        ```@#{BOT_USERNAME} MyGamertag heavy```
+        ```@#{BOT_USERNAME} MyGamertag kinetic```
 
         If you've registered with the bot (`@#{BOT_USERNAME} register <gamertag> <platform>`) then you can simply list the slot to display:
 
-        ```@#{BOT_USERNAME} helmet```
+        ```@#{BOT_USERNAME} kinetic```
 
-        Alternatively, instead of a specific slot, you can say `weapons`, `armor`, or `loadout`, and you'll get a complete summary of every currently equipped weapon, armor piece, or both.
+        If your Destiny in-game name is not unique (such as might happen for Steam users), then the bot will ask you to try again using your numeric Bungie.net ID. To find this number, log into Bungie.net and view your profile. Your Bungie.net ID is displayed below your name, like this: https://imgur.com/a/aUPiDXs
 
-        The full list of supported slots is:```#{Bungie::Api::ITEM_BUCKET_IDS.values.map { |bucket_id| Bungie::Api.get_bucket_code(bucket_id) }.reject(&:blank?).join(', ')}, weapons, armor, loadout```
+        Copy and paste the numeric Bungie.net ID and try the command again: `@#{BOT_USERNAME} register <numeric_id> <platform>`
 
         *Special note to Xbox Users:*
         If your gamertag has any spaces in it, these will need to be substituted with underscores (`_`) in order for the bot to recognize the input properly.
+
+        In addition to requesting a specific slot, you can say `weapons`, `armor`, or `loadout`, and you'll get a complete summary of every currently equipped weapon, armor piece, or both.
+
+        The full list of supported slots is:```#{Bungie::Api::ITEM_BUCKET_IDS.values.map { |bucket_id| Bungie::Api.get_bucket_code(bucket_id) }.reject(&:blank?).join(', ')}, weapons, armor, loadout```
 
         GitHub Repository: #{Gunsmith::Bot::BOT_GITHUB_URL}
 
@@ -79,30 +83,36 @@ module Gunsmith
         break
       end
 
-      begin
-        results = Gunsmith::Bot.instance.query_user_and_platform(requested_gamertag, requested_platform)
-      rescue QueryError => e
-        message_text += "Couldn't find a user for gamertag '#{requested_gamertag}' on platform '#{requested_platform}'."
-        client.say(text: message_text, channel: data.channel)
+
+      if requested_gamertag.positive_integer?
+        # If they provided a numeric bungie.net membership ID, look them up by that
+        bungie_membership = Bungie::BungieMembership.search_membership_by_id_and_platform(requested_gamertag, requested_platform)
+      else
+        # Otherwise, try to search for them by display name. This will only work if it's unique
+        begin
+          bungie_membership = Bungie::BungieMembership.search_membership_by_gamertag_and_platform(requested_gamertag, requested_platform)
+        rescue MultipleResultsError
+          print_multiple_results_message(client, data)
+          break
+        end
+      end
+
+      # If we didn't find a membership, print an error
+      unless bungie_membership
+        print_user_not_found_message(client, data, requested_gamertag, requested_platform)
         break
       end
 
-      # Be sure we actually got a Bungie.net user back
-      unless results[:bungie_user]
-        message_text += "Couldn't find a user for gamertag '#{requested_gamertag}' on platform '#{requested_platform}'."
-        client.say(text: message_text, channel: data.channel)
-        break
-      end
 
       team = load_and_update_team(client.team.id, client.team.name, client.team.domain)
 
-      # Associate the specified Bungie.net user with the slack user who made the request
-      user             = Slack::SlackUser.find_or_create_by(slack_team: team, user_id: data.user)
-      user.bungie_user = results[:bungie_user]
+      # Associate the specified Bungie.net user with the Slack user who made the request
+      user                   = Slack::SlackUser.find_or_create_by(slack_team: team, user_id: data.user)
+      user.bungie_membership = bungie_membership
       user.save
 
 
-      message_text += "Successfully registered you with gamertag '#{results[:bungie_user].gamertag}' on platform '#{results[:bungie_user].platform}'."
+      message_text += "Successfully registered you with gamertag `#{bungie_membership.gamertag}` on platform `#{bungie_membership.platform}`."
 
       client.say(text: message_text, channel: data.channel)
     end
@@ -117,7 +127,7 @@ module Gunsmith
       client.typing(channel: data.channel)
 
       begin
-        bungie_user = nil
+        bungie_membership = nil
 
 
         # Split the input into words, and strip out the element that represents our own
@@ -131,9 +141,9 @@ module Gunsmith
           requested_slot     = args[0]
 
           # If they just provided a slot, see if they're registered with us
-          team        = Slack::SlackTeam.find_by(team_id: client.team.id)
-          user        = Slack::SlackUser.find_by(slack_team: team, user_id: data.user)
-          bungie_user = user&.bungie_user
+          team              = Slack::SlackTeam.find_by(team_id: client.team.id)
+          user              = Slack::SlackUser.find_by(slack_team: team, user_id: data.user)
+          bungie_membership = user&.bungie_membership
         when 2
           requested_gamertag = args[0]
           requested_platform = nil
@@ -148,12 +158,23 @@ module Gunsmith
 
 
         # If they aren't registered with us, see if we can find the user in the API
-        if !bungie_user && requested_gamertag
-          bungie_user = Bungie::BungieUser.search_user_by_gamertag_and_platform(requested_gamertag, requested_platform)
+        if !bungie_membership && requested_gamertag
+          if requested_gamertag.positive_integer?
+            # If they provided a numeric bungie.net membership ID, look them up by that
+            bungie_membership = Bungie::BungieMembership.search_membership_by_id_and_platform(requested_gamertag, requested_platform)
+          else
+            # Otherwise, try to search for them by display name. This will only work if it's unique
+            begin
+              bungie_membership = Bungie::BungieMembership.search_membership_by_gamertag_and_platform(requested_gamertag, requested_platform)
+            rescue MultipleResultsError
+              print_multiple_results_message(client, data)
+              break
+            end
+          end
         end
 
         # If we still didn't find it, print an error
-        unless bungie_user
+        unless bungie_membership
           print_unregistered_user_message(client, data)
           break
         end
@@ -174,12 +195,12 @@ module Gunsmith
             loadout_type = :full
           end
 
-          results = Gunsmith::Bot.instance.query_loadout(bungie_user, loadout_type)
+          results = Gunsmith::Bot.instance.query_loadout(bungie_membership, loadout_type)
           break if results.blank?
 
           loadout_response(client, data, results, loadout_type)
         else
-          results = Gunsmith::Bot.instance.query(bungie_user, requested_slot)
+          results = Gunsmith::Bot.instance.query(bungie_membership, requested_slot)
           break if results.blank?
 
           single_slot_response(client, data, results)
@@ -197,7 +218,7 @@ module Gunsmith
 
       message_text = ''
       message_text += "<@#{data&.user}>: " unless data&.user&.blank?
-      message_text += "`#{results[:bungie_user].gamertag} #{results[:bungie_user].platform} #{results[:slot]}`\n"
+      message_text += "`#{results[:bungie_membership].gamertag} #{results[:bungie_membership].platform} #{results[:slot]}`\n"
 
       if results[:gamertag_suggestions]&.present?
         message_text += 'Gamertag Suggestions: '
@@ -318,7 +339,7 @@ module Gunsmith
 
       message_text = ''
       message_text += "<@#{data&.user}>: " unless data&.user&.blank?
-      message_text += "`#{results[:bungie_user].gamertag} #{results[:bungie_user].platform} #{canonical_loadout_type}`\n"
+      message_text += "`#{results[:bungie_membership].gamertag} #{results[:bungie_membership].platform} #{canonical_loadout_type}`\n"
 
       if results[:gamertag_suggestions]&.present?
         message_text += 'Gamertag Suggestions: '
@@ -423,6 +444,20 @@ module Gunsmith
       client.say(text: output, channel: data.channel)
     end
 
+    def self.print_multiple_results_message(client, data)
+      output = ''
+
+      output += "<@#{data&.user}>: " unless data&.user&.blank?
+
+      output += "Hmm, lotta Guardians go by that name. Can you be more specific?\n"
+      output += "Try again with a numeric bungie.net user ID instead.\n"
+      output += "Use the 'help' command for more info."
+
+      output.strip!
+
+      client.say(text: output, channel: data.channel)
+    end
+
     def self.print_unregistered_user_message(client, data)
       output = ''
 
@@ -430,6 +465,19 @@ module Gunsmith
 
       output += "Memory's not what it used to be. Who're you again?\n"
       output += "Use `@#{BOT_USERNAME} register <gamertag> <platform>` to register your Bungie.net profile.\n"
+      output += "Use the 'help' command for more info."
+
+      output.strip!
+
+      client.say(text: output, channel: data.channel)
+    end
+
+    def self.print_user_not_found_message(client, data, requested_gamertag, requested_platform)
+      output = ''
+
+      output += "<@#{data&.user}>: " unless data&.user&.blank?
+
+      output += "Couldn't find a user for gamertag '#{requested_gamertag}' on platform '#{requested_platform}'."
       output += "Use the 'help' command for more info."
 
       output.strip!

@@ -12,3 +12,15 @@ end
 
 Object.include(PresenceUtils)
 
+
+module NumericComparisonUtils
+  def integer?
+    /\A[-+]?\d+\z/ === self
+  end
+
+  def positive_integer?
+    /\A\d+\z/ === self
+  end
+end
+
+String.include(NumericComparisonUtils)
