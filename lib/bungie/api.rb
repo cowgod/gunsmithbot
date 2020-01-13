@@ -20,6 +20,8 @@ module Bungie
 
     base_uri 'https://www.bungie.net/Platform/'
 
+    SUCCESS_CODE = 200
+
     COMPONENTS       = {
       None: 0,
 
@@ -255,7 +257,9 @@ module Bungie
       url      = "/User/GetMembershipsById/#{URI.escape(membership_id.to_s)}/#{URI.escape(membership_type_id.to_s)}/"
       response = self.class.get(url, @options)
 
-      response ? response.parsed_response&.dig('Response') : []
+      raise 'API request failed' unless response.code == SUCCESS_CODE
+
+      response.parsed_response&.dig('Response') || []
     end
 
 
@@ -269,7 +273,9 @@ module Bungie
       url      = "/Destiny2/SearchDestinyPlayer/#{URI.escape(membership_type_id.to_s)}/#{URI.escape(requested_gamertag.to_s)}/"
       response = self.class.get(url, @options)
 
-      response ? response.parsed_response&.dig('Response') : []
+      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
+
+      response.parsed_response&.dig('Response') || []
 
       # unless user
       #   # Try again after replacing underscores with spaces, for XBox GamerTags
@@ -314,6 +320,8 @@ module Bungie
         )
       )
 
+      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
+
       characters = response.parsed_response['Response']&.dig('characters', 'data')
       return nil unless characters
 
@@ -343,6 +351,8 @@ module Bungie
           }
         )
       )
+
+      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
 
       item_instance = response.parsed_response['Response']
       return nil unless item_instance
@@ -546,6 +556,8 @@ module Bungie
       url      = "/User/GetBungieAccount/#{URI.escape(id.to_s)}/254/"
       response = self.class.get(url, @options)
 
+      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
+
       results = response.parsed_response['Response']
 
     end
@@ -571,6 +583,8 @@ module Bungie
           }
         )
       )
+
+      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
 
       item_instance = response.parsed_response['Response']
 
@@ -692,6 +706,8 @@ module Bungie
 
     def initialize_manifest
       response = self.class.get('/Destiny2/Manifest/', @options)
+
+      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
 
       parsed_response = response.parsed_response['Response']
       raise 'Invalid manifest URL received' unless parsed_response

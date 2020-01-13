@@ -31,8 +31,8 @@ module Gunsmith
 
 
         # Split the input into words, and strip out the element that represents
-        # our own userid (which will look something like '<@UCNTC2YH0>')
-        args = event.message.content&.split(/\s+/)&.grep_v(/^<@[A-Z0-9]+>$/)
+        # our own userid (which will look something like '<@!UCNTC2YH0>')
+        args = event.message.content&.split(/\s+/)&.grep_v(/^<@[A-Z0-9!]+>$/)
 
 
         if args[0].downcase == 'help'
