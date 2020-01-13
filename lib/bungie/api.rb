@@ -50,6 +50,10 @@ module Bungie
       # Profile-wide level, across all characters.
       ProfileProgression: 104,
 
+      # This will get you information about the silver that this profile has on every platform on which it plays.
+      # You may only request this component for the logged in user's Profile, and will not recieve it if you request it for another Profile.
+      PlatformSilver: 105,
+
       # This will get you summary info about each of the characters in the
       # profile.
       Characters: 200,
@@ -132,6 +136,26 @@ module Bungie
       # gutter and pay attention!
       ItemPlugStates: 308,
 
+      # Sometimes, plugs have objectives on them. This data can get really large, so
+      # we split it into its own component. Please, don't grab it unless you need it.
+      ItemPlugObjectives: 309,
+
+      # Sometimes, designers create thousands of reusable plugs and suddenly your
+      # response sizes are almost 3 MB, and something has to give.
+      # Reusable Plugs were split off as their own component, away from ItemSockets,
+      # as a result of the Plug changes in Shadowkeep that made plug data infeasibly
+      # large for the most common use cases.
+      # Request this component if and only if you need to know what plugs *could* be
+      # inserted into a socket, and need to know it before "drilling" into the details
+      # of an item in your application (for instance, if you 're doing some sort of
+      # interesting sorting or aggregation based on available plugs.
+      # When you get this, you will also need to combine it with "Plug Sets" data if
+      # you want a full picture of all of the available plugs : this component will
+      # only return plugs that have state data that is per - item.See Plug Sets for
+      # available plugs that have Character, Profile, or no state - specific
+      # restrictions.
+      ItemReusablePlugs: 310,
+
       # When obtaining vendor information, this will return summary information
       # about the Vendor or Vendors being returned.
       Vendors: 400,
@@ -175,7 +199,14 @@ module Bungie
       # Returns summary status information about all "Records" (also known in the
       # game as "Triumphs". I know, it's confusing because there's also "Moments
       # of Triumph" that will themselves be represented as "Triumphs.")
-      Records: 900
+      Records: 900,
+
+      # Returns information that Bungie considers to be "Transitory": data that may
+      # change too frequently or come from a non-authoritative source such that we
+      # don't consider the data to be fully trustworthy, but that might prove useful
+      # for some limited use cases. We can provide no guarantee of timeliness nor
+      # consistency for this data: buyer beware with the Transitory component.
+      Transitory: 1000
     }.freeze
     ITEM_BUCKET_IDS  = {
       KINETIC_WEAPON: 1498876634,
@@ -346,7 +377,8 @@ module Bungie
 
                           COMPONENTS[:ItemSockets],
                           COMPONENTS[:ItemCommonData],
-                          COMPONENTS[:ItemPlugStates]
+                          COMPONENTS[:ItemPlugStates],
+                          COMPONENTS[:ItemPlugObjectives]
                         ].join(',')
           }
         )
@@ -387,6 +419,23 @@ module Bungie
           ### Item instance data:
           socket_instance = item_instance&.dig('sockets', 'data', 'sockets')&.dig(socket_index)
           next unless socket_instance
+
+
+          ### Load any objectives (e.g. masterwork kill trackers) for the plug inserted in this socket
+          item_instance.dig('plugObjectives', 'data', 'objectivesPerPlug', socket_instance&.dig('plugHash').to_s)
+            &.select { |objective| objective&.dig('visible') }
+            &.each do |objective|
+            objective_definition = @manifest.lookup_objective(objective&.dig('objectiveHash'))
+
+            # If the kill counter is active, add it to the item as a whole
+            if objective&.dig('complete')
+              item_details[:objectives] += [{
+                                              label: objective_definition&.dig('progressDescription'),
+                                              value: objective&.dig('progress')
+                                            }]
+            end
+          end
+
 
           case SOCKET_CATEGORY_IDS.key(category.dig('socketCategoryHash'))
           when :weapon_perks, :armor_perks
@@ -489,30 +538,6 @@ module Bungie
                 affected_stat:          stat_details&.dig('displayProperties', 'name'),
                 value:                  affected_stat&.dig('value'),
                 damage_resistance_type: damage_resistance_type
-              }
-
-              # , 'v300.plugs.masterworks.generic.weapons.kills', 'v300.plugs.masterworks.generic.weapons.kills_pvp'
-            when /v300\.plugs\.masterworks\./
-              socket_instance&.dig('plugObjectives')
-                &.select { |objective| objective&.dig('visible') }
-                &.each do |objective|
-                objective_definition = @manifest.lookup_objective(objective&.dig('objectiveHash'))
-
-                # If the kill counter is active, add it to the item as a whole
-                if objective&.dig('complete')
-                  item_details[:objectives] += [{
-                                                  label: objective_definition&.dig('progressDescription'),
-                                                  value: objective&.dig('progress')
-                                                }]
-                end
-              end
-
-              item_details[:masterwork] = {
-                hash:        plug_definition.dig('hash').to_s,
-                name:        plug_definition.dig('displayProperties', 'name'),
-                description: plug_definition.dig('displayProperties', 'description'),
-                icon:        plug_definition.dig('displayProperties', 'icon'),
-                has_icon:    plug_definition.dig('displayProperties', 'hasIcon')
               }
             end
           end

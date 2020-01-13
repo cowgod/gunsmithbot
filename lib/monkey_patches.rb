@@ -24,3 +24,13 @@ module NumericComparisonUtils
 end
 
 String.include(NumericComparisonUtils)
+
+
+module NumericFormattingUtils
+  # Add commas every 3 digits
+  def to_formatted_s
+    to_s.reverse.gsub(/...(?!-)(?=.)/, '\&,').reverse
+  end
+end
+
+Integer.include(NumericFormattingUtils)
