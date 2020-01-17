@@ -406,13 +406,23 @@ module Bungie
         power_level:      item_instance.dig('instance', 'data', 'primaryStat', 'value'),
         name:             item_definition.dig('displayProperties', 'name'),
         description:      item_definition.dig('displayProperties', 'description'),
-        icon:             item_definition.dig('displayProperties', 'icon'),
-        has_icon:         item_definition.dig('displayProperties', 'hasIcon'),
         tier:             item_definition.dig('inventory', 'tierTypeName'),
         type:             item_definition.dig('itemTypeDisplayName'),
         type_and_tier:    item_definition.dig('itemTypeAndTierDisplayName'),
         objectives:       []
       }
+
+
+      # If the item has an override style (i.e. an applied ornament), use that icon instead
+      if item_instance.dig('item', 'data', 'overrideStyleItemHash')
+        override_item           = @manifest.lookup_item(item_instance.dig('item', 'data', 'overrideStyleItemHash'))
+        item_details[:icon]     = override_item&.dig('displayProperties', 'icon') || item_definition.dig('displayProperties', 'icon')
+        item_details[:has_icon] = override_item&.dig('displayProperties', 'hasIcon') || item_definition.dig('displayProperties', 'hasIcon')
+      else
+        item_details[:icon]     = item_definition&.dig('displayProperties', 'icon')
+        item_details[:has_icon] = item_definition&.dig('displayProperties', 'hasIcon')
+      end
+
 
       item_details[:perk_sockets] = []
 
