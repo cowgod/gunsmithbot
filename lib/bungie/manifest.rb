@@ -26,6 +26,10 @@ module Bungie
       lookup_item_in_table('DestinyStatDefinition', hash)
     end
 
+    def lookup_energy_type(hash)
+      lookup_item_in_table('DestinyEnergyTypeDefinition', hash)
+    end
+
     def lookup_objective(hash)
       lookup_item_in_table('DestinyObjectiveDefinition', hash)
     end

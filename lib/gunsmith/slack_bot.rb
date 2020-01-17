@@ -266,27 +266,43 @@ module Gunsmith
         )
       end
 
-      # Masterwork / Mod
-      masterwork = 'n/a'
-      if results[:item][:masterwork]
-        if results&.dig(:item, :masterwork, :affected_stat)
-          masterwork = "#{results[:item][:masterwork][:affected_stat]} - #{results[:item][:masterwork][:value]}"
-        else
-          masterwork = 'Yes'
-        end
-      end
-      attachment_fields.push(
-        title: 'Masterwork',
-        value: masterwork,
-        short: true
-      )
 
-      attachment_fields.push(
-        title: 'Mod',
-        ### TODO -- get rid of description?
-        value: results[:item][:mod] ? results[:item][:mod][:name].to_s : 'n/a',
-        short: true
-      )
+      if results[:item][:armor2_0]
+        # Instead of masterwork/mod, show the energy level
+        attachment_fields.push(
+          title: 'Element',
+          value: results[:item][:energy_type],
+          short: true
+        )
+
+        attachment_fields.push(
+          title: 'Energy',
+          value: "#{results[:item][:energy_capacity]} / #{Bungie::Api::MAX_ENERGY} (#{results[:item][:energy_used]} used)",
+          short: true
+        )
+      else
+        # Masterwork / Mod
+        masterwork = 'n/a'
+        if results[:item][:masterwork]
+          if results&.dig(:item, :masterwork, :affected_stat)
+            masterwork = "#{results[:item][:masterwork][:affected_stat]} - #{results[:item][:masterwork][:value]}"
+          else
+            masterwork = 'Yes'
+          end
+        end
+        attachment_fields.push(
+          title: 'Masterwork',
+          value: masterwork,
+          short: true
+        )
+
+        attachment_fields.push(
+          title: 'Mod',
+          ### TODO -- get rid of description?
+          value: results[:item][:mod] ? results[:item][:mod][:name].to_s : 'n/a',
+          short: true
+        )
+      end
 
       # Stats
       stat_abbreviations = {

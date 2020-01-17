@@ -267,6 +267,10 @@ module Bungie
       void:    '#400080'
     }.freeze
 
+    # Max possible energy that armor can have
+    MAX_ENERGY = 10
+
+
     def initialize
       %w[BUNGIE_API_TOKEN].each do |var_name|
         raise "Environment variable '#{var_name}' not set" unless ENV[var_name]
@@ -378,7 +382,8 @@ module Bungie
                           COMPONENTS[:ItemSockets],
                           COMPONENTS[:ItemCommonData],
                           COMPONENTS[:ItemPlugStates],
-                          COMPONENTS[:ItemPlugObjectives]
+                          COMPONENTS[:ItemPlugObjectives],
+                          COMPONENTS[:ItemReusablePlugs]
                         ].join(',')
           }
         )
@@ -410,6 +415,18 @@ module Bungie
       }
 
       item_details[:perk_sockets] = []
+
+      # Item is Armor 2.0 if it has an 'energy' attribute
+      item_details[:armor2_0] = !!item_instance.dig('instance', 'data', 'energy')
+
+      if item_details[:armor2_0]
+        energy_type = @manifest.lookup_energy_type(item_instance.dig('instance', 'data', 'energy', 'energyTypeHash'))
+
+        item_details[:energy_type]     = energy_type.dig('displayProperties', 'name')
+        item_details[:energy_used]     = item_instance.dig('instance', 'data', 'energy', 'energyUsed')
+        item_details[:energy_capacity] = item_instance.dig('instance', 'data', 'energy', 'energyCapacity')
+      end
+
 
       item_definition&.dig('sockets', 'socketCategories')&.each do |category|
         category&.dig('socketIndexes')&.each do |socket_index|
@@ -444,22 +461,13 @@ module Bungie
 
             perk_socket = []
 
-            if socket_instance&.dig('reusablePlugs')
+            if item_instance.dig('reusablePlugs', 'data', 'plugs', socket_index.to_s)
               # If the socket supports multiple reusablePlugs, display them all, and mark which is currently selected
-              socket_instance&.dig('reusablePlugs')&.each do |plug|
+              item_instance.dig('reusablePlugs', 'data', 'plugs', socket_index.to_s)
+                &.each do |plug|
+
                 plug_definition = @manifest.lookup_item(plug&.dig('plugItemHash'))
                 next unless plug_definition
-
-                plug_objectives = plug&.dig('plugObjectives')
-                  &.select { |objective| objective&.dig('visible') }
-                  &.map do |objective|
-                  objective_definition = @manifest.lookup_objective(objective&.dig('objectiveHash'))
-
-                  {
-                    label: objective_definition&.dig('progressDescription'),
-                    value: objective&.dig('progress')
-                  }
-                end
 
                 perk = {
                   hash:        plug_definition.dig('hash').to_s,
@@ -467,14 +475,10 @@ module Bungie
                   description: plug_definition.dig('displayProperties', 'description'),
                   icon:        plug_definition.dig('displayProperties', 'icon'),
                   has_icon:    plug_definition.dig('displayProperties', 'hasIcon'),
-                  selected:    (plug_definition.dig('hash').to_s == socket_instance&.dig('plugHash').to_s),
-                  objectives:  plug_objectives
+                  selected:    (plug_definition.dig('hash').to_s == socket_instance&.dig('plugHash').to_s)
                 }
 
                 perk_socket.push perk
-
-                # If the perk is currently selected and it has any associated objectives, add them to the item as a whole
-                item_details[:objectives] += plug_objectives if perk[:selected] && plug_objectives.present?
               end
             else
               # Otherwise, just display the fixed plug that's in the socket
@@ -500,8 +504,41 @@ module Bungie
             next unless plug_definition && plug_definition&.dig('plug')
 
             case plug_definition&.dig('plug', 'plugCategoryIdentifier')
+            when /^enhancements\./
+              # enhancements.v2_general
+              # enhancements.v2_arms
+              # enhancements.v2_chest
+              # enhancements.v2_legs
+              # enhancements.v2_class_item
+              # enhancements.v2_general --- Empty Mod Socket
+              # enhancements.season_maverick --- Empty Mod Socket
+              # enhancements.season_v470 --- Empty Mod Socket
+              # TODO - Maybe just show it all them rather than filtering by identifier, there's so many options
+
+              # If the socket supports multiple reusablePlugs, display them all, and mark which is currently selected
+              perk = {
+                hash:        plug_definition.dig('hash').to_s,
+                name:        plug_definition.dig('displayProperties', 'name'),
+                description: plug_definition.dig('displayProperties', 'description'),
+                icon:        plug_definition.dig('displayProperties', 'icon'),
+                has_icon:    plug_definition.dig('displayProperties', 'hasIcon'),
+                selected:    (plug_definition.dig('hash').to_s == socket_instance&.dig('plugHash').to_s)
+              }
+
+              item_details[:perk_sockets].push [perk]
+
+
+              #item_details[:mod] = {
+              #  hash:        plug_definition.dig('hash').to_s,
+              #  name:        plug_definition.dig('displayProperties', 'name'),
+              #  description: plug_definition.dig('displayProperties', 'description'),
+              #  icon:        plug_definition.dig('displayProperties', 'icon'),
+              #  has_icon:    plug_definition.dig('displayProperties', 'hasIcon')
+              #}
+
+
               # v400.weapon.mod_empty
-            when /v400\.weapon\.mod_/, 'enhancements.universal'
+            when /v400\.weapon\.mod_/
               next if plug_definition&.dig('displayProperties', 'name') == 'Empty Mod Socket'
 
               # next unless plug_item&.dig('investmentStats')&.first
