@@ -281,7 +281,7 @@ module Gunsmith
           short: true
         )
       else
-        # Masterwork / Mod
+        # Masterwork
         masterwork = 'n/a'
         if results[:item][:masterwork]
           if results&.dig(:item, :masterwork, :affected_stat)
@@ -290,19 +290,26 @@ module Gunsmith
             masterwork = 'Yes'
           end
         end
-        attachment_fields.push(
-          title: 'Masterwork',
-          value: masterwork,
-          short: true
-        )
 
+        if masterwork != 'n/a':
+          attachment_fields.push(
+            title: 'Masterwork',
+            value: masterwork,
+            short: true
+          )
+        end
+
+        # Mod
         description = results[:item][:mod] ? results[:item][:mod][:name].to_s : 'n/a'
-        attachment_fields.push(
-          title: 'Mod',
-          ### TODO -- get rid of description?
-          value: description,
-          short: true
-        )
+
+        if description != 'n/a':
+          attachment_fields.push(
+            title: 'Mod',
+            ### TODO -- get rid of description?
+            value: description,
+            short: true
+          )
+        end
       end
 
       # Stats
