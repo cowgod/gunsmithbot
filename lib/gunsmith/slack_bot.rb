@@ -296,10 +296,11 @@ module Gunsmith
           short: true
         )
 
+        description = results[:item][:mod] ? results[:item][:mod][:name].to_s : 'n/a'
         attachment_fields.push(
           title: 'Mod',
           ### TODO -- get rid of description?
-          value: results[:item][:mod] ? results[:item][:mod][:name].to_s : 'n/a',
+          value: description,
           short: true
         )
       end
