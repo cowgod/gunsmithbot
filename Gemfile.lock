@@ -132,7 +132,7 @@ DEPENDENCIES
   discordrb
   httparty
   mysql2
-  otr-activerecord
+  otr-activerecord (~> 2.0)
   rake
   rubyzip (~> 2.3.0)
   slack-ruby-bot
