@@ -214,8 +214,8 @@ HELP
 
     def single_slot_response(event, results)
       # Prepare output
-      destiny_tracker_url = "https://db.destinytracker.com/d2/en/items/#{URI.encode(results[:item][:hash])}"
-      icon_url            = results[:item][:has_icon] ? "https://www.bungie.net#{URI.encode(results[:item][:icon])}" : nil
+      destiny_tracker_url = "https://db.destinytracker.com/d2/en/items/#{CGI.escape(results[:item][:hash])}"
+      icon_url            = results[:item][:has_icon] ? "https://www.bungie.net#{CGI.escape(results[:item][:icon])}" : nil
 
 
       message_text = "<@#{event&.user&.id}>: "
@@ -375,8 +375,8 @@ HELP
       slots_to_query = Bot.slots_for_loadout_type(type)
 
       results[:slots].each do |slot, item|
-        destiny_tracker_url = "https://db.destinytracker.com/d2/en/items/#{URI.encode(item[:hash])}"
-        icon_url            = item[:has_icon] ? "https://www.bungie.net/#{URI.encode(item[:icon])}" : nil
+        destiny_tracker_url = "https://db.destinytracker.com/d2/en/items/#{CGI.escape(item[:hash])}"
+        icon_url            = item[:has_icon] ? "https://www.bungie.net/#{CGI.escape(item[:icon])}" : nil
 
 
         attachment_fields = []

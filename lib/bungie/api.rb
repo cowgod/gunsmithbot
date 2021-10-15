@@ -2,7 +2,7 @@
 
 require 'singleton'
 require 'httparty'
-require 'uri'
+require 'cgi'
 require 'time'
 require 'tempfile'
 require 'sqlite3'
@@ -289,7 +289,7 @@ module Bungie
       # Transform the requested platform into a numeric ID
       membership_type_id = Bungie::Api.get_membership_type_id(requested_platform) || -1
 
-      url      = "/User/GetMembershipsById/#{URI.escape(membership_id.to_s)}/#{URI.escape(membership_type_id.to_s)}/"
+      url      = "/User/GetMembershipsById/#{CGI.escape(membership_id.to_s)}/#{CGI.escape(membership_type_id.to_s)}/"
       response = self.class.get(url, @options)
 
       raise 'API request failed' unless response.code == SUCCESS_CODE
@@ -305,7 +305,7 @@ module Bungie
       # Transform the requested platform into a numeric ID
       membership_type_id = Bungie::Api.get_membership_type_id(requested_platform) || -1
 
-      url      = "/Destiny2/SearchDestinyPlayer/#{URI.escape(membership_type_id.to_s)}/#{URI.escape(requested_gamertag.to_s)}/"
+      url      = "/Destiny2/SearchDestinyPlayer/#{CGI.escape(membership_type_id.to_s)}/#{CGI.escape(requested_gamertag.to_s)}/"
       response = self.class.get(url, @options)
 
       raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
@@ -316,7 +316,7 @@ module Bungie
       #   # Try again after replacing underscores with spaces, for XBox GamerTags
       #   requested_gamertag.tr!('_', ' ')
       #
-      #   url      = "/Destiny2/SearchDestinyPlayer/#{URI.escape(membership_type_id.to_s)}/#{URI.escape(requested_gamertag.to_s)}/"
+      #   url      = "/Destiny2/SearchDestinyPlayer/#{CGI.escape(membership_type_id.to_s)}/#{CGI.escape(requested_gamertag.to_s)}/"
       #   response = self.class.get(url, @options)
       #
       #   user = response ? response.parsed_response['Response'][0] : nil
@@ -345,7 +345,7 @@ module Bungie
 
 
     def get_characters_with_equipment(membership_type, membership_id)
-      url      = "/Destiny2/#{URI.escape(membership_type.to_s)}/Profile/#{URI.escape(membership_id.to_s)}/"
+      url      = "/Destiny2/#{CGI.escape(membership_type.to_s)}/Profile/#{CGI.escape(membership_id.to_s)}/"
       response = self.class.get(
         url,
         @options.merge(
@@ -369,7 +369,7 @@ module Bungie
 
 
     def item_details(membership_type, membership_id, item_instance_id)
-      url      = "/Destiny2/#{URI.escape(membership_type.to_s)}/Profile/#{URI.escape(membership_id.to_s)}/Item/#{URI.escape(item_instance_id.to_s)}/"
+      url      = "/Destiny2/#{CGI.escape(membership_type.to_s)}/Profile/#{CGI.escape(membership_id.to_s)}/Item/#{CGI.escape(item_instance_id.to_s)}/"
       response = self.class.get(
         url,
         @options.merge(
@@ -615,7 +615,7 @@ module Bungie
 
 
     # def get_user_for_membership_id(membership_id)
-    #   url      = "/User/GetBungieNetUserById/#{URI.escape(membership_id.to_s)}/"
+    #   url      = "/User/GetBungieNetUserById/#{CGI.escape(membership_id.to_s)}/"
     #   response = self.class.get(url, @options)
     #
     #   results = response.parsed_response['Response']
@@ -625,7 +625,7 @@ module Bungie
 
     ### UNSUPPORTED ENDPOINT, DON'T USE
     def get_user_for_id(id)
-      url      = "/User/GetBungieAccount/#{URI.escape(id.to_s)}/254/"
+      url      = "/User/GetBungieAccount/#{CGI.escape(id.to_s)}/254/"
       response = self.class.get(url, @options)
 
       raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
@@ -638,7 +638,7 @@ module Bungie
     def get_xxxx
       'https://www.bungie.net/Platform/User/15274884/Partnerships/'
 
-      url      = "/Destiny2/#{URI.escape(membership_type.to_s)}/Profile/#{URI.escape(membership_id.to_s)}/Item/#{URI.escape(item_instance_id.to_s)}/"
+      url      = "/Destiny2/#{CGI.escape(membership_type.to_s)}/Profile/#{CGI.escape(membership_id.to_s)}/Item/#{CGI.escape(item_instance_id.to_s)}/"
       response = self.class.get(
         url,
         @options.merge(
