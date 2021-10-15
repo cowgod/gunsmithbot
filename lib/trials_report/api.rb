@@ -14,7 +14,7 @@ module TrialsReport
 
       membership_type_id = Bungie::Api.get_membership_type_id(requested_platform) || 0
 
-      url      = "https://elastic.destinytrialsreport.com/players/#{CGI.escape(membership_type_id.to_s)}/#{CGI.escape(requested_gamertag.to_s)}/"
+      url      = "https://elastic.destinytrialsreport.com/players/#{membership_type_id.to_s.uri_encode}/#{requested_gamertag.to_s.uri_encode}/"
       response = HTTParty.get(url)
 
       response ? response.parsed_response : nil

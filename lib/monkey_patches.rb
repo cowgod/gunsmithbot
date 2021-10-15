@@ -5,6 +5,7 @@ module PresenceUtils
     respond_to?(:empty?) ? !!empty? : !self
   end
 
+
   def present?
     !blank?
   end
@@ -17,6 +18,7 @@ module NumericComparisonUtils
   def integer?
     /\A[-+]?\d+\z/ === self
   end
+
 
   def positive_integer?
     /\A\d+\z/ === self
@@ -34,3 +36,16 @@ module NumericFormattingUtils
 end
 
 Integer.include(NumericFormattingUtils)
+
+
+module UriEncodingUtils
+  require 'cgi'
+
+
+  def uri_encode
+    CGI.escape(self).gsub('+', '%20')
+  end
+end
+
+String.include(UriEncodingUtils)
+

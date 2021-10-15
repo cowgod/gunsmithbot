@@ -13,7 +13,7 @@ module Gunsmith
     BOT_USERNAME      = (ENV['GUNSMITH_BOT_USERNAME'] || 'banshee-44')
 
 
-    def initialize()
+    def initialize
       raise 'DISCORD_API_KEY not set' unless ENV['DISCORD_API_TOKEN'].present?
 
       @bot = Discordrb::Bot.new token: ENV['DISCORD_API_TOKEN'], name: BOT_NAME, client_id: DISCORD_CLIENT_ID
@@ -38,29 +38,18 @@ module Gunsmith
         if args[0].downcase == 'help'
 
           output = <<HELP
-            To show off your weapon/armor, message the bot with your gamertag, network, and weapon/armor slot, separated by spaces. The bot will always look at the *most recently played character* on your account.
+            To show off your weapon/armor, message the bot with your Bungie Name and weapon/armor slot, separated by spaces. The bot will always look at the *most recently played character* on your account.
             The standard usage looks like this:
 
-            ```@#{BOT_USERNAME} <gamertag> <platform> <slot>```
+            ```@#{BOT_USERNAME} <bungie_name> <slot>```
 
             For example:
 
-            ```@#{BOT_USERNAME} MyGamertag steam kinetic```
+            ```@#{BOT_USERNAME} MyBungieName#1234 kinetic```
 
-            If your gamertag only exists on one platform, that can be omitted:
-
-            ```@#{BOT_USERNAME} MyGamertag kinetic```
-
-            If you've registered with the bot (`@#{BOT_USERNAME} register <gamertag> <platform>`) then you can simply list the slot to display:
+            If you've registered with the bot (`@#{BOT_USERNAME} register <bungie_name>`) then you can simply list the slot to display:
 
             ```@#{BOT_USERNAME} kinetic```
-
-            If your Destiny in-game name is not unique (such as might happen for Steam users), then the bot will ask you to try again using your numeric Bungie.net ID. To find this number, log into Bungie.net and view your profile. Your Bungie.net ID is displayed below your name, like this: https://imgur.com/a/aUPiDXs
-
-            Copy and paste the numeric Bungie.net ID and try the command again: `@#{BOT_USERNAME} register <numeric_id> <platform>`
-
-            *Special note to Xbox Users:*
-            If your gamertag has any spaces in it, these will need to be substituted with underscores (`_`) in order for the bot to recognize the input properly.
 
             In addition to requesting a specific slot, you can say `weapons`, `armor`, or `loadout`, and you'll get a complete summary of every currently equipped weapon, armor piece, or both.
 
@@ -83,32 +72,26 @@ HELP
           message_text = ''
           message_text += "<@#{event&.user&.id}>: " unless event&.user.blank?
 
-          requested_gamertag = args[1]
-          requested_platform = args[2]
+          requested_bungie_name = args[1]
 
-          unless requested_gamertag && requested_platform
-            message_text += "Usage: `@#{BOT_USERNAME} register <gamertag> <platform>`"
+          unless requested_bungie_name
+            message_text += "Usage: `@#{BOT_USERNAME} register <bungie_name>`"
             event&.channel&.send_message message_text
             next
           end
 
 
-          if requested_gamertag.positive_integer?
+          if requested_bungie_name.positive_integer?
             # If they provided a numeric bungie.net membership ID, look them up by that
-            bungie_membership = Bungie::BungieMembership.search_membership_by_id_and_platform(requested_gamertag, requested_platform)
+            bungie_membership = Bungie::BungieMembership.search_membership_by_id(requested_bungie_name)
           else
-            # Otherwise, try to search for them by display name. This will only work if it's unique
-            begin
-              bungie_membership = Bungie::BungieMembership.search_membership_by_gamertag_and_platform(requested_gamertag, requested_platform)
-            rescue MultipleResultsError
-              print_multiple_results_message(event: event)
-              break
-            end
+            # Otherwise, try to search for them by Bungie Name
+            bungie_membership = Bungie::BungieMembership.search_membership_by_bungie_name(requested_bungie_name)
           end
 
           # If we didn't find a membership, print an error
           unless bungie_membership
-            print_user_not_found_message(event: event, requested_gamertag: requested_gamertag, requested_platform: requested_platform)
+            print_user_not_found_message(event: event, requested_bungie_name: requested_bungie_name)
             break
           end
 
@@ -120,7 +103,7 @@ HELP
           user.save
 
 
-          message_text += "Successfully registered you with gamertag `#{bungie_membership.gamertag}` on platform `#{bungie_membership.platform}`."
+          message_text += "Successfully registered you with Bungie Name `#{bungie_membership.bungie_name}`."
 
           message_text.strip!
 
@@ -134,39 +117,29 @@ HELP
 
             case args.length
             when 1
-              requested_gamertag = nil
-              requested_platform = nil
-              requested_slot     = args[0]
+              requested_bungie_name = nil
+              requested_slot        = args[0]
 
               # If they just provided a slot, see if they're registered with us
               user              = Discord::DiscordUser.find_by(user_id: event.message.author.id)
               bungie_membership = user&.bungie_membership
-            when 2
-              requested_gamertag = args[0]
-              requested_platform = nil
-              requested_slot     = args[1]
-            when 3
-              requested_gamertag = args[0]
-              requested_platform = args[1]
-              requested_slot     = args[2]
+            when 2..Float::INFINITY
+              # Grab everything but the last argument as the Bungie Name
+              requested_bungie_name = args[0..-2].join(' ')
+              requested_slot        = args[-1]
             else
               raise ArgumentError, 'Wrong number of arguments.'
             end
 
 
             # If they aren't registered with us, see if we can find the user in the API
-            if !bungie_membership && requested_gamertag
-              if requested_gamertag.positive_integer?
+            if !bungie_membership && requested_bungie_name
+              if requested_bungie_name.positive_integer?
                 # If they provided a numeric bungie.net membership ID, look them up by that
-                bungie_membership = Bungie::BungieMembership.search_membership_by_id_and_platform(requested_gamertag, requested_platform)
+                bungie_membership = Bungie::BungieMembership.search_membership_by_id(requested_bungie_name)
               else
-                # Otherwise, try to search for them by display name. This will only work if it's unique
-                begin
-                  bungie_membership = Bungie::BungieMembership.search_membership_by_gamertag_and_platform(requested_gamertag, requested_platform)
-                rescue MultipleResultsError
-                  print_multiple_results_message(event: event)
-                  next
-                end
+                # Otherwise, try to search for them by Bungie Name
+                bungie_membership = Bungie::BungieMembership.search_membership_by_bungie_name(requested_bungie_name)
               end
             end
 
@@ -212,23 +185,24 @@ HELP
       end
     end
 
+
     def single_slot_response(event, results)
       # Prepare output
-      destiny_tracker_url = "https://db.destinytracker.com/d2/en/items/#{CGI.escape(results[:item][:hash])}"
-      icon_url            = results[:item][:has_icon] ? "https://www.bungie.net#{CGI.escape(results[:item][:icon])}" : nil
+      destiny_tracker_url = "https://db.destinytracker.com/d2/en/items/#{results[:item][:hash].uri_encode}"
+      icon_url            = results[:item][:has_icon] ? "https://www.bungie.net#{results[:item][:icon].uri_encode}" : nil
 
 
       message_text = "<@#{event&.user&.id}>: "
-      message_text += "`#{results[:bungie_membership].gamertag} #{results[:bungie_membership].platform} #{results[:slot]}`\n"
+      message_text += "`#{results[:bungie_membership].bungie_name} #{results[:slot]}`\n"
 
-      if results[:gamertag_suggestions].present?
-        message_text += 'Gamertag Suggestions: '
-
-        message_text += results[:gamertag_suggestions]
-          .take(5)
-          .map { |gamertag| "`#{gamertag}`" }
-          .join(', ')
-      end
+      # if results[:gamertag_suggestions].present?
+      #   message_text += 'Gamertag Suggestions: '
+      #
+      #   message_text += results[:gamertag_suggestions]
+      #     .take(5)
+      #     .map { |gamertag| "`#{gamertag}`" }
+      #     .join(', ')
+      # end
 
       message_text.strip!
 
@@ -252,7 +226,7 @@ HELP
         perk_socket.map do |perk|
           perk[:selected] ? "**#{perk[:name]}**" : perk[:name]
         end
-          .join(' | ')
+                   .join(' | ')
       end
         .map { |line| "- #{line}" }
         .join("\n")
@@ -340,6 +314,7 @@ HELP
       nil
     end
 
+
     def loadout_response(event, results, type = :full)
       # Prepare output
 
@@ -353,17 +328,17 @@ HELP
       end
 
       message_text = "<@#{event&.user&.id}>: "
-      message_text += "`#{results[:bungie_membership].gamertag} #{results[:bungie_membership].platform} #{canonical_loadout_type}`\n"
+      message_text += "`#{results[:bungie_membership].bungie_name} #{canonical_loadout_type}`\n"
 
 
-      if results[:gamertag_suggestions]&.present?
-        message_text += 'Gamertag Suggestions: '
-
-        message_text += results[:gamertag_suggestions]
-          .take(5)
-          .map { |gamertag| "`#{gamertag}`" }
-          .join(', ')
-      end
+      # if results[:gamertag_suggestions]&.present?
+      #   message_text += 'Gamertag Suggestions: '
+      #
+      #   message_text += results[:gamertag_suggestions]
+      #     .take(5)
+      #     .map { |gamertag| "`#{gamertag}`" }
+      #     .join(', ')
+      # end
 
       message_text += "\n#{results&.dig(:slots, :SUBCLASS, :name)}"
 
@@ -375,8 +350,8 @@ HELP
       slots_to_query = Bot.slots_for_loadout_type(type)
 
       results[:slots].each do |slot, item|
-        destiny_tracker_url = "https://db.destinytracker.com/d2/en/items/#{CGI.escape(item[:hash])}"
-        icon_url            = item[:has_icon] ? "https://www.bungie.net/#{CGI.escape(item[:icon])}" : nil
+        destiny_tracker_url = "https://db.destinytracker.com/d2/en/items/#{item[:hash].uri_encode}"
+        icon_url            = item[:has_icon] ? "https://www.bungie.net/#{item[:icon].uri_encode}" : nil
 
 
         attachment_fields = []
@@ -463,26 +438,11 @@ HELP
       nil
     end
 
+
     def run
       @bot.run
     end
 
-    def print_multiple_results_message(event:)
-      # Be sure we have a webhook connection available to respond with
-      # return unless @webhook_clients[event&.channel&.id].present?
-
-      output = ''
-
-      output += "<@#{event&.user&.id}>: " unless event&.user.blank?
-
-      output += "Hmm, lotta Guardians go by that name. Can you be more specific?\n"
-      output += "Try again with a numeric bungie.net user ID instead.\n"
-      output += "Use the 'help' command for more info."
-
-      output.strip!
-
-      event&.channel&.send_message output
-    end
 
     def print_unregistered_user_message(event:)
       # Be sure we have a webhook connection available to respond with
@@ -493,7 +453,7 @@ HELP
       output += "<@#{event&.user&.id}>: " unless event&.user.blank?
 
       output += "Memory's not what it used to be. Who're you again?\n"
-      output += "Use `@#{BOT_USERNAME} register <gamertag> <platform>` to register your Bungie.net profile.\n"
+      output += "Use `@#{BOT_USERNAME} register <bungie_net>` to register your Bungie.net profile.\n"
       output += "Use the 'help' command for more info."
 
       output.strip!
@@ -501,7 +461,8 @@ HELP
       event&.channel&.send_message output
     end
 
-    def print_user_not_found_message(event:, requested_gamertag:, requested_platform:)
+
+    def print_user_not_found_message(event:, requested_bungie_name:)
       # Be sure we have a webhook connection available to respond with
       # return unless @webhook_clients[event&.channel&.id].present?
 
@@ -509,13 +470,14 @@ HELP
 
       output += "<@#{event&.user&.id}>: " unless event&.user.blank?
 
-      output += "Couldn't find a user for gamertag '#{requested_gamertag}' on platform '#{requested_platform}'."
+      output += "Couldn't find a user for Bungie Name '#{requested_bungie_name}'."
       output += "Use the 'help' command for more info."
 
       output.strip!
 
       event&.channel&.send_message output
     end
+
 
     def print_usage(event:, additional_message:)
       # Be sure we have a webhook connection available to respond with
@@ -527,7 +489,7 @@ HELP
       output += additional_message.to_s unless additional_message.blank?
       output += "\n"
 
-      output += "Usage: `@#{BOT_USERNAME} <gamertag> <platform> <slot>`\n"
+      output += "Usage: `@#{BOT_USERNAME} <bungie_net> <slot>`\n"
       output += "Please use the 'help' command for more info."
 
       output.strip!
