@@ -242,7 +242,8 @@ module Bungie
       Arc:     2,
       Thermal: 3,
       Void:    4,
-      Raid:    5
+      Raid:    5,
+      Stasis:  6
     }.freeze
 
     # The value of the uiCategoryStyle for socketCategories that we want to
@@ -262,9 +263,10 @@ module Bungie
     # Used in formatting the attachment
     DAMAGE_COLOR = {
       kinetic: '#d9d9d9',
-      arc:     '#80b3ff',
+      arc:     '#72bde3',
       thermal: '#e68a00',
-      void:    '#400080'
+      void:    '#400080',
+      stasis:  '#5a88f7'
     }.freeze
 
     # Max possible energy that armor can have
