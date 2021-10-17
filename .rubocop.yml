@@ -5,5 +5,9 @@ Layout/HashAlignment:
   EnforcedHashRocketStyle: table
   EnforcedColonStyle: table
 
+Layout/EmptyLineBetweenDefs:
+  NumberOfEmptyLines: [ 2, 3 ]
+  AllowAdjacentOneLineDefs: false
+
 Lint/UriEscapeUnescape:
   Enabled: false

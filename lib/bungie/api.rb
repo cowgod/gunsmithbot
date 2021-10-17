@@ -285,6 +285,21 @@ module Bungie
     end
 
 
+    # Load the Bungie.net account for a given Bungie.net membership ID
+    def get_bungie_user_for_membership_id(membership_id)
+      # If they didn't give us a membership_id to search, there's nothing we can do
+      return nil unless membership_id
+
+      url      = "/User/GetBungieNetUserById/#{membership_id.to_s.uri_encode}/"
+      response = self.class.get(url, @options)
+
+      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
+
+      response.parsed_response&.dig('Response') || []
+    end
+
+
+    # Load all platform memberships for a given platform membership ID, plus the Bungie.net account
     def get_memberships_for_membership_id(membership_id)
       # If they didn't give us a membership_id to search, there's nothing we can do
       return nil unless membership_id
@@ -295,13 +310,14 @@ module Bungie
       url      = "/User/GetMembershipsById/#{membership_id.to_s.uri_encode}/#{membership_type_id.to_s.uri_encode}/"
       response = self.class.get(url, @options)
 
-      raise 'API request failed' unless response.code == SUCCESS_CODE
+      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
 
       response.parsed_response&.dig('Response') || []
     end
 
 
-    def search_user(requested_bungie_name)
+    # Find all platform accounts for a given Bungie name (display_name#1234)
+    def get_memberships_for_bungie_name(requested_bungie_name)
       # If they didn't give us a Bungie Name to search, there's nothing we can do
       return nil unless requested_bungie_name
 
@@ -314,18 +330,6 @@ module Bungie
       raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
 
       response.parsed_response&.dig('Response') || []
-
-      # unless user
-      #   # Try again after replacing underscores with spaces, for XBox GamerTags
-      #   requested_bungie_name.tr!('_', ' ')
-      #
-      #   url      = "/Destiny2/SearchDestinyPlayer/#{membership_type_id.to_s.uri_encode}/#{requested_bungie_name.to_s.uri_encode}/"
-      #   response = self.class.get(url, @options)
-      #
-      #   user = response ? response.parsed_response['Response'][0] : nil
-      # end
-
-      # user
     end
 
 
@@ -616,14 +620,6 @@ module Bungie
       item_details
     end
 
-
-    # def get_user_for_membership_id(membership_id)
-    #   url      = "/User/GetBungieNetUserById/#{membership_id.to_s.uri_encode}/"
-    #   response = self.class.get(url, @options)
-    #
-    #   results = response.parsed_response['Response']
-    #
-    # end
 
 
     ### UNSUPPORTED ENDPOINT, DON'T USE

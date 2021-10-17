@@ -35,7 +35,8 @@ module Gunsmith
         args = event.message.content&.split(/\s+/)&.grep_v(/^<@[A-Z0-9!]+>$/)
 
 
-        if args[0].downcase == 'help'
+        case args[0].downcase
+        when 'help'
 
           output = <<HELP
             To show off your weapon/armor, message the bot with your Bungie Name and weapon/armor slot, separated by spaces. The bot will always look at the *most recently played character* on your account.
@@ -65,7 +66,7 @@ HELP
           event.user.pm output
           next
 
-        elsif args[0].downcase == 'register'
+        when 'register'
 
 
           # Start out our response by tagging the user that messaged us
@@ -81,12 +82,12 @@ HELP
           end
 
 
-          if requested_bungie_name.positive_integer?
+          bungie_membership = if requested_bungie_name.positive_integer?
             # If they provided a numeric bungie.net membership ID, look them up by that
-            bungie_membership = Bungie::BungieMembership.search_membership_by_id(requested_bungie_name)
+            Bungie::BungieMembership.search_membership_by_id(requested_bungie_name)
           else
             # Otherwise, try to search for them by Bungie Name
-            bungie_membership = Bungie::BungieMembership.search_membership_by_bungie_name(requested_bungie_name)
+            Bungie::BungieMembership.search_membership_by_bungie_name(requested_bungie_name)
           end
 
           # If we didn't find a membership, print an error
@@ -134,12 +135,12 @@ HELP
 
             # If they aren't registered with us, see if we can find the user in the API
             if !bungie_membership && requested_bungie_name
-              if requested_bungie_name.positive_integer?
+              bungie_membership = if requested_bungie_name.positive_integer?
                 # If they provided a numeric bungie.net membership ID, look them up by that
-                bungie_membership = Bungie::BungieMembership.search_membership_by_id(requested_bungie_name)
+                Bungie::BungieMembership.search_membership_by_id(requested_bungie_name)
               else
                 # Otherwise, try to search for them by Bungie Name
-                bungie_membership = Bungie::BungieMembership.search_membership_by_bungie_name(requested_bungie_name)
+                Bungie::BungieMembership.search_membership_by_bungie_name(requested_bungie_name)
               end
             end
 
@@ -156,13 +157,13 @@ HELP
 
             case requested_slot.strip.downcase
             when 'loadout', 'weapons', 'weapon', 'guns', 'gun', 'armor'
-              case requested_slot.strip.downcase
+              loadout_type = case requested_slot.strip.downcase
               when 'weapons', 'weapon', 'guns', 'gun'
-                loadout_type = :weapons
+                :weapons
               when 'armor'
-                loadout_type = :armor
+                :armor
               else
-                loadout_type = :full
+                :full
               end
 
               results = Gunsmith::Bot.instance.query_loadout(bungie_membership, loadout_type)
@@ -256,10 +257,10 @@ HELP
         # Masterwork / Mod
         masterwork = 'n/a'
         if results[:item][:masterwork]
-          if results&.dig(:item, :masterwork, :affected_stat)
-            masterwork = "#{results[:item][:masterwork][:affected_stat]} - #{results[:item][:masterwork][:value]}"
+          masterwork = if results&.dig(:item, :masterwork, :affected_stat)
+            "#{results[:item][:masterwork][:affected_stat]} - #{results[:item][:masterwork][:value]}"
           else
-            masterwork = 'Yes'
+            'Yes'
           end
         end
         attachment_fields.push({

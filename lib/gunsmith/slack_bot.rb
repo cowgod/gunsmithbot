@@ -73,12 +73,10 @@ module Gunsmith
       end
 
 
-      if requested_bungie_name.positive_integer?
-        # If they provided a numeric bungie.net membership ID, look them up by that
-        bungie_membership = Bungie::BungieMembership.search_membership_by_id(requested_bungie_name)
+      bungie_membership = if requested_bungie_name.positive_integer?
+        Bungie::BungieMembership.search_membership_by_id(requested_bungie_name)
       else
-        # Otherwise, try to search for them by display name. This will only work if it's unique
-        bungie_membership = Bungie::BungieMembership.search_membership_by_bungie_name(requested_bungie_name)
+        Bungie::BungieMembership.search_membership_by_bungie_name(requested_bungie_name)
       end
 
       # If we didn't find a membership, print an error
