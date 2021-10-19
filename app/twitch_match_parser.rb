@@ -14,9 +14,16 @@ require_relative '../environment'
 #
 # results
 
-bungie_membership = Bungie::BungieMembership.search_membership_by_bungie_name('cowgod77')
 
-puts bungie_membership
+# bungie_membership = Bungie::BungieMembership.search_membership_by_bungie_name('cowgod77#9729')
+bungie_membership = Bungie::BungieMembership.search_membership_by_bungie_name('Gernader Jake#3107')
+
+# Load twitch account
+twitch_account = Twitch::Api.instance.get_twitch_user_for_display_name(bungie_membership.bungie_user.twitch_display_name)
+twitch_videos = Twitch::Api.instance.get_twitch_videos_for_user_id(twitch_account['id'])
+
+
+pp twitch_videos
 
 # user                   = Discord::DiscordUser.find_or_create_by(user_id: event.message.author.id)
 #

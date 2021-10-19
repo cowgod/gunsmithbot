@@ -1,11 +1,12 @@
+# frozen_string_literal: true
 require 'slack-ruby-bot'
 
 
 module Gunsmith
   # Wrapper for GunsmithBot class, to adapt it to usage in Slack
   class SlackBot < SlackRubyBot::Bot
-    BOT_NAME     = 'Banshee-44'.freeze
-    BOT_ICON_URL = 'http://binrock.net/banshee44.png'.freeze
+    BOT_NAME     = 'Banshee-44'
+    BOT_ICON_URL = 'http://binrock.net/banshee44.png'
     BOT_USERNAME = (ENV['GUNSMITH_BOT_USERNAME'] || 'banshee-44')
 
     IGNORED_CHANNELS = [
