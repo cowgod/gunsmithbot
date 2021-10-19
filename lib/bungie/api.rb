@@ -278,7 +278,7 @@ module Bungie
         raise "Environment variable '#{var_name}' not set" unless ENV[var_name]
       end
 
-      puts 'Initializing Bungie API... Done.'
+      Cowgod::Logger.log "#{self.class}.#{__method__} - Initializing Bungie API... Done."
 
       @options = { headers: { 'X-API-Key' => ENV['BUNGIE_API_TOKEN'] } }
       initialize_manifest

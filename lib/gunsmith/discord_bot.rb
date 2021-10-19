@@ -21,8 +21,8 @@ module Gunsmith
 
       # Here we output the invite URL to the console so the bot account can be invited to the channel. This only has to be
       # done once, afterwards, you can remove this part if you want
-      puts "This bot's invite URL is #{@bot.invite_url}"
-      puts 'Click on it to invite it to your server.'
+      Cowgod::Logger.log "#{self.class}.#{__method__} - This bot's invite URL is #{@bot.invite_url}"
+      Cowgod::Logger.log "#{self.class}.#{__method__} - Click on it to invite it to your server."
 
 
       @bot.mention do |event|
