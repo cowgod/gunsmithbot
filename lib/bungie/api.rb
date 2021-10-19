@@ -290,9 +290,11 @@ module Bungie
       # If they didn't give us a membership_id to search, there's nothing we can do
       return nil unless membership_id
 
-      url      = "/User/GetBungieNetUserById/#{membership_id.to_s.uri_encode}/"
-      response = self.class.get(url, @options)
+      url = "/User/GetBungieNetUserById/#{membership_id.to_s.uri_encode}/"
 
+      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
+
+      response = self.class.get(url, @options)
       raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
 
       response.parsed_response&.dig('Response') || []
@@ -307,9 +309,11 @@ module Bungie
       # Now that crossplay is in effect, we always want to specify "all" for the platform
       membership_type_id = -1
 
-      url      = "/User/GetMembershipsById/#{membership_id.to_s.uri_encode}/#{membership_type_id.to_s.uri_encode}/"
-      response = self.class.get(url, @options)
+      url = "/User/GetMembershipsById/#{membership_id.to_s.uri_encode}/#{membership_type_id.to_s.uri_encode}/"
 
+      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
+
+      response = self.class.get(url, @options)
       raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
 
       response.parsed_response&.dig('Response') || []
@@ -324,9 +328,11 @@ module Bungie
       # Now that crossplay is in effect, we always want to specify "all" for the platform
       membership_type_id = -1
 
-      url      = "/Destiny2/SearchDestinyPlayer/#{membership_type_id.to_s.uri_encode}/#{requested_bungie_name.to_s.uri_encode}/"
-      response = self.class.get(url, @options)
+      url = "/Destiny2/SearchDestinyPlayer/#{membership_type_id.to_s.uri_encode}/#{requested_bungie_name.to_s.uri_encode}/"
 
+      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
+
+      response = self.class.get(url, @options)
       raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
 
       response.parsed_response&.dig('Response') || []
@@ -352,7 +358,10 @@ module Bungie
 
 
     def get_characters_with_equipment(membership_type, membership_id)
-      url      = "/Destiny2/#{membership_type.to_s.uri_encode}/Profile/#{membership_id.to_s.uri_encode}/"
+      url = "/Destiny2/#{membership_type.to_s.uri_encode}/Profile/#{membership_id.to_s.uri_encode}/"
+
+      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
+
       response = self.class.get(
         url,
         @options.merge(
@@ -361,7 +370,6 @@ module Bungie
           }
         )
       )
-
       raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
 
       characters = response.parsed_response['Response']&.dig('characters', 'data')
@@ -376,7 +384,10 @@ module Bungie
 
 
     def item_details(membership_type, membership_id, item_instance_id)
-      url      = "/Destiny2/#{membership_type.to_s.uri_encode}/Profile/#{membership_id.to_s.uri_encode}/Item/#{item_instance_id.to_s.uri_encode}/"
+      url = "/Destiny2/#{membership_type.to_s.uri_encode}/Profile/#{membership_id.to_s.uri_encode}/Item/#{item_instance_id.to_s.uri_encode}/"
+
+      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
+
       response = self.class.get(
         url,
         @options.merge(
@@ -395,7 +406,6 @@ module Bungie
           }
         )
       )
-
       raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
 
       item_instance = response.parsed_response['Response']
@@ -624,9 +634,11 @@ module Bungie
 
     ### UNSUPPORTED ENDPOINT, DON'T USE
     def get_user_for_id(id)
-      url      = "/User/GetBungieAccount/#{id.to_s.uri_encode}/254/"
-      response = self.class.get(url, @options)
+      url = "/User/GetBungieAccount/#{id.to_s.uri_encode}/254/"
 
+      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
+
+      response = self.class.get(url, @options)
       raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
 
       results = response.parsed_response['Response']
@@ -637,7 +649,10 @@ module Bungie
     def get_xxxx
       'https://www.bungie.net/Platform/User/15274884/Partnerships/'
 
-      url      = "/Destiny2/#{membership_type.to_s.uri_encode}/Profile/#{membership_id.to_s.uri_encode}/Item/#{item_instance_id.to_s.uri_encode}/"
+      url = "/Destiny2/#{membership_type.to_s.uri_encode}/Profile/#{membership_id.to_s.uri_encode}/Item/#{item_instance_id.to_s.uri_encode}/"
+
+      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
+
       response = self.class.get(
         url,
         @options.merge(
@@ -654,7 +669,6 @@ module Bungie
           }
         )
       )
-
       raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
 
       item_instance = response.parsed_response['Response']
@@ -776,14 +790,17 @@ module Bungie
 
 
     def initialize_manifest
-      response = self.class.get('/Destiny2/Manifest/', @options)
+      url = '/Destiny2/Manifest/'
 
+      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
+
+      response = self.class.get(url, @options)
       raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
 
       parsed_response = response.parsed_response['Response']
       raise 'Invalid manifest URL received' unless parsed_response
 
-      @manifest = Bungie::Manifest.new 'https://www.bungie.net' + parsed_response.dig('mobileWorldContentPaths', 'en')
+      @manifest = Bungie::Manifest.new "https://www.bungie.net#{parsed_response.dig('mobileWorldContentPaths', 'en')}"
     end
   end
 end
