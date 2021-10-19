@@ -194,7 +194,7 @@ module Gunsmith
     def self.single_slot_response(client, data, results)
       # Prepare output
       destiny_tracker_url = "https://db.destinytracker.com/d2/en/items/#{results[:item][:hash].uri_encode}"
-      icon_url            = results[:item][:has_icon] ? "https://www.bungie.net/#{results[:item][:icon].uri_encode}" : nil
+      icon_url            = results[:item][:has_icon] ? "https://www.bungie.net/#{results[:item][:icon]}" : nil
 
       message_text = ''
       message_text += "<@#{data&.user}>: " unless data&.user&.blank?
@@ -357,7 +357,7 @@ module Gunsmith
 
       results[:slots].each do |slot, item|
         destiny_tracker_url = "https://db.destinytracker.com/d2/en/items/#{item[:hash].uri_encode}"
-        icon_url            = item[:has_icon] ? "https://www.bungie.net/#{item[:icon].uri_encode}" : nil
+        icon_url            = item[:has_icon] ? "https://www.bungie.net/#{item[:icon]}" : nil
 
         # attachment_title    = results[:item][:name]
         # attachment_text     = "#{results[:item][:type_and_tier]} - #{results[:item][:power_level]} PL\n#{results[:item][:description]}"

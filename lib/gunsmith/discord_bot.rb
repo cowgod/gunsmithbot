@@ -199,7 +199,7 @@ HELP
     def single_slot_response(event, results)
       # Prepare output
       destiny_tracker_url = "https://db.destinytracker.com/d2/en/items/#{results[:item][:hash].uri_encode}"
-      icon_url            = results[:item][:has_icon] ? "https://www.bungie.net#{results[:item][:icon].uri_encode}" : nil
+      icon_url            = results[:item][:has_icon] ? "https://www.bungie.net#{results[:item][:icon]}" : nil
 
 
       message_text = "<@#{event&.user&.id}>: "
@@ -303,8 +303,8 @@ HELP
 
 
       event&.channel&.send_embed(message_text) do |embed|
-        embed.title       = attachment_title
-        embed.description = attachment_text
+        embed.title       = attachment_title[0..255]
+        embed.description = attachment_text[0..4095]
         embed.color       = Bungie::Api.get_hex_color_for_damage_type(results[:item][:damage_type])
         embed.url         = destiny_tracker_url
         embed.thumbnail   = Discordrb::Webhooks::EmbedImage.new(url: icon_url)
@@ -312,12 +312,11 @@ HELP
         embed.timestamp   = Time.now
 
         attachment_fields.each do |field|
-          new_field          = {}
-          new_field[:name]   = field.dig(:title) || '.'
-          new_field[:value]  = field.dig(:value) || '.'
-          new_field[:inline] = !!field.dig(:short)
-
-          embed.add_field(new_field)
+          embed.add_field(
+            name:   (field[:title] || '.')[0..255],
+            value:  (field[:value] || '.')[0..1023],
+            inline: ActiveModel::Type::Boolean.new.cast(field[:short])
+          )
         end
       end
 
@@ -361,7 +360,7 @@ HELP
 
       results[:slots].each do |slot, item|
         destiny_tracker_url = "https://db.destinytracker.com/d2/en/items/#{item[:hash].uri_encode}"
-        icon_url            = item[:has_icon] ? "https://www.bungie.net/#{item[:icon].uri_encode}" : nil
+        icon_url            = item[:has_icon] ? "https://www.bungie.net/#{item[:icon]}" : nil
 
 
         attachment_fields = []
@@ -374,7 +373,7 @@ HELP
 
         attachment_title = "[#{Bungie::Api.get_bucket_name(slot)}]: #{item[:name]} (#{item[:type_and_tier]} - #{item[:power_level]} PL)"
 
-        attachment_color = Bungie::Api.get_hex_color_for_damage_type(item.dig(:masterwork, :damage_resistance_type) || item.dig(:damage_type))
+        attachment_color = Bungie::Api.get_hex_color_for_damage_type(item.dig(:masterwork, :damage_resistance_type) || item[:damage_type])
 
         field_text = '- Perks: '
 
@@ -426,8 +425,8 @@ HELP
 
       attachments.each do |attachment|
         event&.channel&.send_embed do |embed|
-          embed.title = attachment[:title]
-          # embed.description = attachment_text
+          embed.title = attachment[:title][0..255]
+          # embed.description = attachment_text[0..4095]
           embed.color     = Bungie::Api.get_hex_color_for_damage_type(attachment[:color])
           embed.url       = attachment[:title_link]
           embed.thumbnail = Discordrb::Webhooks::EmbedImage.new(url: attachment[:thumb_url])
@@ -435,12 +434,11 @@ HELP
           # embed.timestamp = Time.now
 
           attachment[:fields].each do |field|
-            new_field          = {}
-            new_field[:name]   = field.dig(:title) || '.'
-            new_field[:value]  = field.dig(:value) || '.'
-            new_field[:inline] = !!field.dig(:short)
-
-            embed.add_field(new_field)
+            embed.add_field(
+              name:   (field[:title] || '.')[0..255],
+              value:  (field[:value] || '.')[0..1023],
+              inline: ActiveModel::Type::Boolean.new.cast(field[:short])
+            )
           end
         end
       end
@@ -463,7 +461,7 @@ HELP
       output += "<@#{event&.user&.id}>: " unless event&.user.blank?
 
       output += "Memory's not what it used to be. Who're you again?\n"
-      output += "Use `@#{BOT_USERNAME} register <bungie_net>` to register your Bungie.net profile.\n"
+      output += "Use `@#{BOT_USERNAME} register <bungie_name>` to register your Bungie.net profile.\n"
       output += "Use the 'help' command for more info."
 
       output.strip!
