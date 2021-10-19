@@ -14,9 +14,6 @@ module Gunsmith
 
 
     def initialize
-      super
-
-
       raise 'DISCORD_API_KEY not set' unless ENV['DISCORD_API_TOKEN'].present?
 
       @bot = Discordrb::Bot.new token: ENV['DISCORD_API_TOKEN'], name: BOT_NAME, client_id: DISCORD_CLIENT_ID
