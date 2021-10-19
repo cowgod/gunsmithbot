@@ -156,6 +156,14 @@ module Gunsmith
           break
         end
 
+
+        ## Fixup the DB record. If it's missing the Bungie User, fetch it and save it
+        unless bungie_membership.bungie_user
+          bungie_membership.bungie_user = Bungie::BungieUser.search_user_by_platform_membership_id(bungie_membership.membership_id)
+          bungie_membership.save
+        end
+
+
         case requested_slot.strip.downcase
         when 'loadout', 'weapons', 'weapon', 'guns', 'gun', 'armor'
           case requested_slot.strip.downcase

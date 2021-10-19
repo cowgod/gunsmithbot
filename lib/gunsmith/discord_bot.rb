@@ -14,6 +14,9 @@ module Gunsmith
 
 
     def initialize
+      super
+
+
       raise 'DISCORD_API_KEY not set' unless ENV['DISCORD_API_TOKEN'].present?
 
       @bot = Discordrb::Bot.new token: ENV['DISCORD_API_TOKEN'], name: BOT_NAME, client_id: DISCORD_CLIENT_ID
@@ -66,18 +69,18 @@ HELP
           event.user.pm output
           next
 
-        when 'register'
 
+        when 'register'
 
           # Start out our response by tagging the user that messaged us
           message_text = ''
-          message_text += "<@#{event&.user&.id}>: " unless event&.user.blank?
+          message_text += "<@#{event.user&.id}>: " unless event.user.blank?
 
           requested_bungie_name = args[1]
 
           unless requested_bungie_name
             message_text += "Usage: `@#{BOT_USERNAME} register <bungie_name>`"
-            event&.channel&.send_message message_text
+            event.channel&.send_message message_text
             next
           end
 
@@ -108,7 +111,8 @@ HELP
 
           message_text.strip!
 
-          event&.channel&.send_message message_text
+          event.channel&.send_message message_text
+
 
         else
 
@@ -154,6 +158,14 @@ HELP
               print_usage(event: event, additional_message: message)
               next
             end
+
+
+            ## Fixup the DB record. If it's missing the Bungie User, fetch it and save it
+            unless bungie_membership.bungie_user
+              bungie_membership.bungie_user = Bungie::BungieUser.search_user_by_platform_membership_id(bungie_membership.membership_id)
+              bungie_membership.save
+            end
+
 
             case requested_slot.strip.downcase
             when 'loadout', 'weapons', 'weapon', 'guns', 'gun', 'armor'
