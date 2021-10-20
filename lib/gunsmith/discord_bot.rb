@@ -84,10 +84,10 @@ HELP
 
           bungie_membership = if requested_bungie_name.positive_integer?
             # If they provided a numeric bungie.net membership ID, look them up by that
-            Bungie::BungieMembership.search_membership_by_id(requested_bungie_name)
+            Bungie::BungieMembership.load_by_id(requested_bungie_name)
           else
             # Otherwise, try to search for them by Bungie Name
-            Bungie::BungieMembership.search_membership_by_bungie_name(requested_bungie_name)
+            Bungie::BungieMembership.load_by_bungie_name(requested_bungie_name)
           end
 
           # If we didn't find a membership, print an error
@@ -98,7 +98,7 @@ HELP
 
 
           # Associate the specified Bungie.net membership with the Discord user who made the request
-          user                   = Discord::DiscordUser.find_or_create_by(user_id: event.message.author.id)
+          user                   = Discord::DiscordUser.find_or_initialize_by(user_id: event.message.author.id)
           user.username          = event.message.author.username
           user.bungie_membership = bungie_membership
           user.save
@@ -138,10 +138,10 @@ HELP
             if !bungie_membership && requested_bungie_name
               bungie_membership = if requested_bungie_name.positive_integer?
                 # If they provided a numeric bungie.net membership ID, look them up by that
-                Bungie::BungieMembership.search_membership_by_id(requested_bungie_name)
+                Bungie::BungieMembership.load_by_id(requested_bungie_name)
               else
                 # Otherwise, try to search for them by Bungie Name
-                Bungie::BungieMembership.search_membership_by_bungie_name(requested_bungie_name)
+                Bungie::BungieMembership.load_by_bungie_name(requested_bungie_name)
               end
             end
 
@@ -159,7 +159,7 @@ HELP
 
             ## Fixup the DB record. If it's missing the Bungie User, fetch it and save it
             unless bungie_membership.bungie_user
-              bungie_membership.bungie_user = Bungie::BungieUser.search_user_by_platform_membership_id(bungie_membership.membership_id)
+              bungie_membership.bungie_user = Bungie::BungieUser.load_by_destiny_membership_id(bungie_membership.membership_id)
               bungie_membership.save
             end
 

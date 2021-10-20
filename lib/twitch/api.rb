@@ -71,6 +71,29 @@ module Twitch
     end
 
 
+    # Load the Twitch account for a given Twitch user ID
+    def get_twitch_user_for_user_id(user_id)
+      # If they didn't give us a user_id to search, there's nothing we can do
+      return nil unless user_id
+
+      url = '/users'
+
+      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
+
+      response = self.class.get(
+        url,
+        @options.merge(
+          query: {
+            id: user_id
+          }
+        )
+      )
+      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
+
+      response.parsed_response&.dig('data')&.first || {}
+    end
+
+
     # Load the Twitch account for a given Twitch display name
     def get_twitch_user_for_display_name(display_name)
       # If they didn't give us a display_name to search, there's nothing we can do
@@ -91,6 +114,39 @@ module Twitch
       raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
 
       response.parsed_response&.dig('data')&.first || {}
+    end
+
+
+    # Load a Twitch video by its ID
+    def get_twitch_video_for_video_id(video_id)
+      # If they didn't give us a video_id to search, there's nothing we can do
+      return nil unless video_id
+
+      url = '/videos'
+
+      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
+
+      response = self.class.get(
+        url,
+        @options.merge(
+          query: {
+            id: video_id
+          }
+        )
+      )
+      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
+
+      results = response.parsed_response&.dig('data') || []
+
+
+      # Convert the duration field to seconds
+      results.map do |result|
+        time_components    = result['duration'].match /((?<hours>\d+)h)?((?<minutes>\d+)m)?(?<seconds>\d+)s/
+        result['duration'] = (3600 * time_components[:hours].to_i) + (60 * time_components[:minutes].to_i) + time_components[:seconds].to_i
+      end
+
+
+      results
     end
 
 
@@ -116,10 +172,10 @@ module Twitch
       results = response.parsed_response&.dig('data') || []
 
 
-      # Do some additional processing
+      # Convert the duration field to seconds
       results.map do |result|
-        time_components           = result['duration'].match /((?<hours>\d+)h)?((?<minutes>\d+)m)?(?<seconds>\d+)s/
-        result['duration_in_sec'] = (3600 * time_components[:hours].to_i) + (60 * time_components[:minutes].to_i) + time_components[:seconds].to_i
+        time_components    = result['duration'].match /((?<hours>\d+)h)?((?<minutes>\d+)m)?(?<seconds>\d+)s/
+        result['duration'] = (3600 * time_components[:hours].to_i) + (60 * time_components[:minutes].to_i) + time_components[:seconds].to_i
       end
 
 

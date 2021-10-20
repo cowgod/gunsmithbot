@@ -8,6 +8,6 @@ module Slack
   # Represent a Slack user
   class SlackUser < ActiveRecord::Base
     belongs_to :slack_team
-    belongs_to :bungie_membership, class_name: 'Bungie::BungieMembership', optional: true
+    belongs_to :bungie_user, class_name: 'Bungie::BungieUser', optional: true
   end
 end

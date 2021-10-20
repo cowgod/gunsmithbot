@@ -82,5 +82,15 @@ module Gunsmith
 
       results
     end
+
+
+
+    def load_pgcrs_for_membership(bungie_membership)
+      results[:bungie_membership] = bungie_membership
+
+      character = bungie_membership.load_characters
+      raise QueryError, "Couldn't find the most recently used character for the requested user." unless character
+
+    end
   end
 end

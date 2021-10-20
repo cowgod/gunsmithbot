@@ -339,26 +339,30 @@ module Bungie
     end
 
 
-    def active_char_with_equipment(membership_type, membership_id)
-      characters = get_characters_with_equipment(membership_type, membership_id)
+    def get_active_character_for_membership(membership_type, membership_id, include_equipment: false)
+      characters = get_characters_for_membership(membership_type, membership_id, include_equipment: include_equipment)
       return nil unless characters
 
       latest_time_played = Time.new(1980, 1, 1)
-      active_char        = nil
+      active_character   = nil
 
       characters.each_pair do |_, character|
-        if character && Time.parse(character.dig('dateLastPlayed')) > latest_time_played
-          active_char        = character
-          latest_time_played = Time.parse(character.dig('dateLastPlayed'))
+        if character && Time.parse(character['dateLastPlayed']) > latest_time_played
+          active_character   = character
+          latest_time_played = Time.parse(character['dateLastPlayed'])
         end
       end
 
-      active_char
+      active_character
     end
 
 
-    def get_characters_with_equipment(membership_type, membership_id)
+    def get_characters_for_membership(membership_type, membership_id, include_equipment: false)
       url = "/Destiny2/#{membership_type.to_s.uri_encode}/Profile/#{membership_id.to_s.uri_encode}/"
+
+      desired_components = [COMPONENTS[:Characters]]
+      desired_components << COMPONENTS[:CharacterEquipment] if include_equipment
+
 
       Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
 
@@ -366,7 +370,7 @@ module Bungie
         url,
         @options.merge(
           query: {
-            components: [COMPONENTS[:Characters], COMPONENTS[:CharacterEquipment]].join(',')
+            components: desired_components.join(',')
           }
         )
       )
@@ -375,8 +379,10 @@ module Bungie
       characters = response.parsed_response['Response']&.dig('characters', 'data')
       return nil unless characters
 
-      characters.each_key do |character_id|
-        characters[character_id]['items'] = response.parsed_response['Response']&.dig('characterEquipment', 'data', character_id, 'items')
+      if include_equipment
+        characters.each_key do |character_id|
+          characters[character_id]['items'] = response.parsed_response['Response']&.dig('characterEquipment', 'data', character_id, 'items')
+        end
       end
 
       characters
@@ -424,8 +430,8 @@ module Bungie
         name:             item_definition.dig('displayProperties', 'name'),
         description:      item_definition.dig('displayProperties', 'description'),
         tier:             item_definition.dig('inventory', 'tierTypeName'),
-        type:             item_definition.dig('itemTypeDisplayName'),
-        type_and_tier:    item_definition.dig('itemTypeAndTierDisplayName'),
+        type:             item_definition['itemTypeDisplayName'],
+        type_and_tier:    item_definition['itemTypeAndTierDisplayName'],
         objectives:       []
       }
 
@@ -481,7 +487,7 @@ module Bungie
           end
 
 
-          case SOCKET_CATEGORY_IDS.key(category.dig('socketCategoryHash'))
+          case SOCKET_CATEGORY_IDS.key(category['socketCategoryHash'])
           when :weapon_perks, :armor_perks
             # If this socket isn't marked as visible, we can skip it
             next unless socket_instance&.dig('isVisible')
@@ -497,12 +503,12 @@ module Bungie
                 next unless plug_definition
 
                 perk = {
-                  hash:        plug_definition.dig('hash').to_s,
+                  hash:        plug_definition['hash'].to_s,
                   name:        plug_definition.dig('displayProperties', 'name'),
                   description: plug_definition.dig('displayProperties', 'description'),
                   icon:        plug_definition.dig('displayProperties', 'icon'),
                   has_icon:    plug_definition.dig('displayProperties', 'hasIcon'),
-                  selected:    (plug_definition.dig('hash').to_s == socket_instance&.dig('plugHash').to_s)
+                  selected:    (plug_definition['hash'].to_s == socket_instance&.dig('plugHash').to_s)
                 }
 
                 perk_socket.push perk
@@ -512,7 +518,7 @@ module Bungie
               plug_definition = @manifest.lookup_item(socket_instance&.dig('plugHash'))
               if plug_definition
                 perk = {
-                  hash:        plug_definition.dig('hash').to_s,
+                  hash:        plug_definition['hash'].to_s,
                   name:        plug_definition.dig('displayProperties', 'name'),
                   description: plug_definition.dig('displayProperties', 'description'),
                   icon:        plug_definition.dig('displayProperties', 'icon'),
@@ -544,12 +550,12 @@ module Bungie
 
               # If the socket supports multiple reusablePlugs, display them all, and mark which is currently selected
               perk = {
-                hash:        plug_definition.dig('hash').to_s,
+                hash:        plug_definition['hash'].to_s,
                 name:        plug_definition.dig('displayProperties', 'name'),
                 description: plug_definition.dig('displayProperties', 'description'),
                 icon:        plug_definition.dig('displayProperties', 'icon'),
                 has_icon:    plug_definition.dig('displayProperties', 'hasIcon'),
-                selected:    (plug_definition.dig('hash').to_s == socket_instance&.dig('plugHash').to_s)
+                selected:    (plug_definition['hash'].to_s == socket_instance&.dig('plugHash').to_s)
               }
 
               item_details[:perk_sockets].push [perk]
@@ -571,7 +577,7 @@ module Bungie
               # next unless plug_item&.dig('investmentStats')&.first
 
               item_details[:mod] = {
-                hash:        plug_definition.dig('hash').to_s,
+                hash:        plug_definition['hash'].to_s,
                 name:        plug_definition.dig('displayProperties', 'name'),
                 description: plug_definition.dig('displayProperties', 'description'),
                 icon:        plug_definition.dig('displayProperties', 'icon'),
@@ -579,7 +585,7 @@ module Bungie
               }
 
             when /v400\.plugs\.(weapons|armor)\.masterworks\./
-              affected_stat = plug_definition.dig('investmentStats')&.first
+              affected_stat = plug_definition['investmentStats']&.first
               stat_details  = @manifest.lookup_stat(affected_stat&.dig('statTypeHash'))
 
               damage_resistance_type = case stat_details&.dig('displayProperties', 'name')
@@ -594,7 +600,7 @@ module Bungie
               damage_resistance_type = (DAMAGE_TYPES.key(damage_resistance_type) || 'Unknown').to_s if damage_resistance_type
 
               item_details[:masterwork] = {
-                hash:                   plug_definition.dig('hash').to_s,
+                hash:                   plug_definition['hash'].to_s,
                 name:                   plug_definition.dig('displayProperties', 'name'),
                 description:            plug_definition.dig('displayProperties', 'description'),
                 icon:                   plug_definition.dig('displayProperties', 'icon'),
@@ -631,6 +637,48 @@ module Bungie
     end
 
 
+    # Get activities for a character
+    # https://bungie-net.github.io/multi/operation_get_Destiny2-GetActivityHistory.html#operation_get_Destiny2-GetActivityHistory
+    def get_activities_for_character(membership_type_id, membership_id, character_id)
+      # If they didn't provide all required values, there's nothing we can do
+      return nil unless membership_type_id && membership_id && character_id
+
+
+      url = "/Destiny2/#{membership_type_id.to_s.uri_encode}/Account/#{membership_id.to_s.uri_encode}/Character/#{character_id.to_s.uri_encode}/Stats/Activities/"
+
+      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
+
+      response = self.class.get(url, @options)
+      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
+
+      response.parsed_response&.dig('Response') || []
+    end
+
+
+    # Get PGCR for an activity
+    # https://bungie-net.github.io/multi/operation_get_Destiny2-GetPostGameCarnageReport.html#operation_get_Destiny2-GetPostGameCarnageReport
+    def get_pgcr_for_activity(activity_id)
+      ####### TODO
+      #
+      #
+      #
+      #
+      # If they didn't give us a Bungie Name to search, there's nothing we can do
+      return nil unless requested_bungie_name
+
+      # Now that crossplay is in effect, we always want to specify "all" for the platform
+      membership_type_id = -1
+
+      url = "/Destiny2/SearchDestinyPlayer/#{membership_type_id.to_s.uri_encode}/#{requested_bungie_name.to_s.uri_encode}/"
+
+      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
+
+      response = self.class.get(url, @options)
+      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
+
+      response.parsed_response&.dig('Response') || []
+    end
+
 
     ### UNSUPPORTED ENDPOINT, DON'T USE
     def get_user_for_id(id)
@@ -646,34 +694,34 @@ module Bungie
     end
 
 
-    def get_xxxx
-      'https://www.bungie.net/Platform/User/15274884/Partnerships/'
-
-      url = "/Destiny2/#{membership_type.to_s.uri_encode}/Profile/#{membership_id.to_s.uri_encode}/Item/#{item_instance_id.to_s.uri_encode}/"
-
-      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
-
-      response = self.class.get(
-        url,
-        @options.merge(
-          query: {
-            components: [
-                          COMPONENTS[:ItemInstances],
-                          COMPONENTS[:ItemPerks],
-                          COMPONENTS[:ItemStats],
-
-                          COMPONENTS[:ItemSockets],
-                          COMPONENTS[:ItemCommonData],
-                          COMPONENTS[:ItemPlugStates]
-                        ].join(',')
-          }
-        )
-      )
-      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
-
-      item_instance = response.parsed_response['Response']
-
-    end
+    # def get_xxxx
+    #   'https://www.bungie.net/Platform/User/15274884/Partnerships/'
+    #
+    #   url = "/Destiny2/#{membership_type.to_s.uri_encode}/Profile/#{membership_id.to_s.uri_encode}/Item/#{item_instance_id.to_s.uri_encode}/"
+    #
+    #   Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
+    #
+    #   response = self.class.get(
+    #     url,
+    #     @options.merge(
+    #       query: {
+    #         components: [
+    #                       COMPONENTS[:ItemInstances],
+    #                       COMPONENTS[:ItemPerks],
+    #                       COMPONENTS[:ItemStats],
+    #
+    #                       COMPONENTS[:ItemSockets],
+    #                       COMPONENTS[:ItemCommonData],
+    #                       COMPONENTS[:ItemPlugStates]
+    #                     ].join(',')
+    #       }
+    #     )
+    #   )
+    #   raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
+    #
+    #   item_instance = response.parsed_response['Response']
+    #
+    # end
 
 
     def self.get_membership_type_id(membership_type)

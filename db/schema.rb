@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2021_10_17_034332) do
+ActiveRecord::Schema.define(version: 2021_10_20_054401) do
 
   create_table "bungie_characters", charset: "utf8", force: :cascade do |t|
     t.bigint "bungie_membership_id", null: false
@@ -56,16 +56,19 @@ ActiveRecord::Schema.define(version: 2021_10_17_034332) do
     t.string "about"
     t.datetime "first_accessed_at"
     t.datetime "last_updated_at"
+    t.bigint "twitch_user_id"
+    t.boolean "find_twitch_streams", default: false, null: false
     t.index ["membership_id"], name: "index_bungie_users_on_membership_id", unique: true
+    t.index ["twitch_user_id"], name: "index_bungie_users_on_twitch_user_id"
   end
 
   create_table "discord_users", charset: "utf8", force: :cascade do |t|
     t.string "user_id"
     t.string "username"
-    t.bigint "bungie_membership_id"
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
-    t.index ["bungie_membership_id"], name: "index_discord_users_on_bungie_membership_id"
+    t.bigint "bungie_user_id"
+    t.index ["bungie_user_id"], name: "index_discord_users_on_bungie_user_id"
     t.index ["user_id"], name: "index_discord_users_on_user_id", unique: true
   end
 
@@ -81,17 +84,51 @@ ActiveRecord::Schema.define(version: 2021_10_17_034332) do
   create_table "slack_users", charset: "utf8", force: :cascade do |t|
     t.bigint "slack_team_id", null: false
     t.string "user_id"
-    t.bigint "bungie_membership_id"
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
-    t.index ["bungie_membership_id"], name: "index_slack_users_on_bungie_membership_id"
+    t.bigint "bungie_user_id"
+    t.index ["bungie_user_id"], name: "index_slack_users_on_bungie_user_id"
     t.index ["slack_team_id", "user_id"], name: "index_slack_users_on_slack_team_id_and_user_id", unique: true
     t.index ["slack_team_id"], name: "index_slack_users_on_slack_team_id"
   end
 
+  create_table "twitch_users", charset: "utf8", force: :cascade do |t|
+    t.integer "user_id"
+    t.string "login_name"
+    t.string "display_name"
+    t.string "broadcaster_type"
+    t.string "description"
+    t.string "profile_image_url"
+    t.string "offline_image_url"
+    t.integer "view_count"
+    t.datetime "channel_created_at"
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+  end
+
+  create_table "twitch_videos", charset: "utf8", force: :cascade do |t|
+    t.bigint "twitch_user_id"
+    t.integer "video_id"
+    t.integer "stream_id"
+    t.string "title"
+    t.string "description"
+    t.datetime "started_at"
+    t.datetime "published_at"
+    t.string "url"
+    t.string "thumbnail_url"
+    t.string "viewable"
+    t.integer "view_count"
+    t.string "language"
+    t.string "type"
+    t.integer "duration"
+    t.index ["twitch_user_id"], name: "index_twitch_videos_on_twitch_user_id"
+  end
+
   add_foreign_key "bungie_characters", "bungie_memberships"
   add_foreign_key "bungie_memberships", "bungie_users"
-  add_foreign_key "discord_users", "bungie_memberships"
-  add_foreign_key "slack_users", "bungie_memberships"
+  add_foreign_key "bungie_users", "twitch_users"
+  add_foreign_key "discord_users", "bungie_users"
+  add_foreign_key "slack_users", "bungie_users"
   add_foreign_key "slack_users", "slack_teams"
+  add_foreign_key "twitch_videos", "twitch_users"
 end
