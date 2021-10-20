@@ -272,6 +272,86 @@ module Bungie
     # Max possible energy that armor can have
     MAX_ENERGY = 10
 
+    ACTIVITY_MODES = {
+      none:                      0,
+      story:                     2,
+      strike:                    3,
+      raid:                      4,
+      all_pvp:                   5,
+      patrol:                    6,
+      all_pve:                   7,
+      reserved9:                 9,
+      control:                   10,
+      reserved11:                11,
+      clash:                     12,
+      reserved13:                13,
+      crimson_doubles:           15,
+      nightfall:                 16,
+      heroic_nightfall:          17,
+      all_strikes:               18,
+      iron_banner:               19,
+      reserved20:                20,
+      reserved21:                21,
+      reserved22:                22,
+      reserved24:                24,
+      all_mayhem:                25,
+      reserved26:                26,
+      reserved27:                27,
+      reserved28:                28,
+      reserved29:                29,
+      reserved30:                30,
+      supremacy:                 31,
+      private_matches_all:       32,
+      survival:                  37,
+      countdown:                 38,
+      trials_of_the_nine:        39,
+      social:                    40,
+      trials_countdown:          41,
+      trials_survival:           42,
+      iron_banner_control:       43,
+      iron_banner_clash:         44,
+      iron_banner_supremacy:     45,
+      scored_nightfall:          46,
+      scored_heroic_nightfall:   47,
+      rumble:                    48,
+      all_doubles:               49,
+      doubles:                   50,
+      private_matches_clash:     51,
+      private_matches_control:   52,
+      private_matches_supremacy: 53,
+      private_matches_countdown: 54,
+      private_matches_survival:  55,
+      private_matches_mayhem:    56,
+      private_matches_rumble:    57,
+      heroic_adventure:          58,
+      showdown:                  59,
+      lockdown:                  60,
+      scorched:                  61,
+      scorched_team:             62,
+      gambit:                    63,
+      all_pve_competitive:       64,
+      breakthrough:              65,
+      black_armory_run:          66,
+      salvage:                   67,
+      iron_banner_salvage:       68,
+      pvp_competitive:           69,
+      pvp_quickplay:             70,
+      clash_quickplay:           71,
+      clash_competitive:         72,
+      control_quickplay:         73,
+      control_competitive:       74,
+      gambit_prime:              75,
+      reckoning:                 76,
+      menagerie:                 77,
+      vex_offensive:             78,
+      nightmare_hunt:            79,
+      elimination:               80,
+      momentum:                  81,
+      dungeon:                   82,
+      sundial:                   83,
+      trials_of_osiris:          84
+    }.freeze
+
 
     def initialize
       %w[BUNGIE_API_TOKEN].each do |var_name|
@@ -639,7 +719,7 @@ module Bungie
 
     # Get activities for a character
     # https://bungie-net.github.io/multi/operation_get_Destiny2-GetActivityHistory.html#operation_get_Destiny2-GetActivityHistory
-    def get_activities_for_character(membership_type_id, membership_id, character_id)
+    def get_activities_for_character(membership_type_id, membership_id, character_id, mode: nil)
       # If they didn't provide all required values, there's nothing we can do
       return nil unless membership_type_id && membership_id && character_id
 
@@ -648,10 +728,17 @@ module Bungie
 
       Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
 
-      response = self.class.get(url, @options)
+      response = self.class.get(
+        url,
+        @options.merge(
+          query: {
+            mode: mode
+          }
+        )
+      )
       raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
 
-      response.parsed_response&.dig('Response') || []
+      response.parsed_response&.dig('Response', 'activities') || []
     end
 
 

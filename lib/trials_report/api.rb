@@ -1,8 +1,6 @@
 require 'httparty'
 require 'cgi'
 
-require_relative '../bungie/api'
-
 
 require 'pp'
 

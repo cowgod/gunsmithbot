@@ -75,9 +75,9 @@ module Gunsmith
 
 
       bungie_membership = if requested_bungie_name.positive_integer?
-        Bungie::BungieMembership.load_by_id(requested_bungie_name)
+        Bungie::Membership.load_by_id(requested_bungie_name)
       else
-        Bungie::BungieMembership.load_by_bungie_name(requested_bungie_name)
+        Bungie::Membership.load_by_bungie_name(requested_bungie_name)
       end
 
       # If we didn't find a membership, print an error
@@ -88,7 +88,7 @@ module Gunsmith
 
       ## Fixup the DB record. If it's missing the Bungie User, fetch it and save it
       unless bungie_membership.bungie_user
-        bungie_membership.bungie_user = Bungie::BungieUser.load_by_destiny_membership_id(bungie_membership.membership_id)
+        bungie_membership.bungie_user = Bungie::User.load_by_destiny_membership_id(bungie_membership.membership_id)
         bungie_membership.save
       end
 
@@ -96,7 +96,7 @@ module Gunsmith
       team = load_and_update_team(client.team.id, client.team.name, client.team.domain)
 
       # Associate the specified Bungie.net user with the Slack user who made the request
-      user             = Slack::SlackUser.find_or_initialize_by(slack_team: team, user_id: data.user)
+      user             = Slack::User.find_or_initialize_by(team: team, user_id: data.user)
       user.bungie_user = bungie_membership.bungie_user
       user.save
 
@@ -129,9 +129,9 @@ module Gunsmith
           requested_slot        = args[0]
 
           # If they just provided a slot, see if they're registered with us
-          team              = Slack::SlackTeam.find_by(team_id: client.team.id)
-          user              = Slack::SlackUser.find_by(slack_team: team, user_id: data.user)
-          bungie_membership = user&.bungie_user&.bungie_memberships&.first
+          team              = Slack::Team.find_by(team_id: client.team.id)
+          user              = Slack::User.find_by(team: team, user_id: data.user)
+          bungie_membership = user&.bungie_user&.memberships&.first
         when 2..Float::INFINITY
           # Grab everything but the last argument as the Bungie Name
           requested_bungie_name = args[0..-2].join(' ')
@@ -145,10 +145,10 @@ module Gunsmith
         if !bungie_membership && requested_bungie_name
           bungie_membership = if requested_bungie_name.positive_integer?
             # If they provided a numeric bungie.net membership ID, look them up by that
-            Bungie::BungieMembership.load_by_id(requested_bungie_name)
+            Bungie::Membership.load_by_id(requested_bungie_name)
           else
             # Otherwise, try to search for them by display name. This will only work if it's unique
-            Bungie::BungieMembership.load_by_bungie_name(requested_bungie_name)
+            Bungie::Membership.load_by_bungie_name(requested_bungie_name)
           end
         end
 
@@ -166,7 +166,7 @@ module Gunsmith
 
         ## Fixup the DB record. If it's missing the Bungie User, fetch it and save it
         unless bungie_membership.bungie_user
-          bungie_membership.bungie_user = Bungie::BungieUser.load_by_destiny_membership_id(bungie_membership.membership_id)
+          bungie_membership.bungie_user = Bungie::User.load_by_destiny_membership_id(bungie_membership.membership_id)
           bungie_membership.save
         end
 
@@ -482,7 +482,7 @@ module Gunsmith
 
     def self.load_and_update_team(team_id, name, domain)
       # If the team doesn't already exist, create it
-      team        = Slack::SlackTeam.find_or_initialize_by(team_id: team_id)
+      team        = Slack::Team.find_or_initialize_by(team_id: team_id)
       team.name   = name
       team.domain = domain
       team.save

@@ -2,14 +2,14 @@
 
 module Twitch
   # Represent a Twitch user
-  class TwitchUser < ActiveRecord::Base
-    has_one :bungie_user, class_name: 'Bungie::BungieUser'
-    has_many :twitch_videos
+  class User < ActiveRecord::Base
+    has_one :bungie_user, class_name: 'Bungie::User'
+    has_many :videos
 
 
 
     def load_videos
-      twitch_videos = Twitch::TwitchVideo.load_videos_for_user_id(user_id)
+      twitch_videos = Twitch::Video.load_videos_for_user_id(user_id)
     end
 
 
@@ -39,7 +39,7 @@ module Twitch
       return nil unless user_hash&.dig('id')
 
 
-      user = Twitch::TwitchUser.find_or_initialize_by(user_id: user_hash&.dig('id'))
+      user = Twitch::User.find_or_initialize_by(user_id: user_hash&.dig('id'))
 
       user.login_name         = user_hash&.dig('login').to_i
       user.display_name       = user_hash&.dig('display_name')

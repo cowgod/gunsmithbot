@@ -4,11 +4,6 @@ require 'singleton'
 require 'httparty'
 require 'cgi'
 require 'time'
-# require 'tempfile'
-# require 'sqlite3'
-# require 'zip'
-
-# require_relative 'manifest'
 
 require 'pp'
 

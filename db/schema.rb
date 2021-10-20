@@ -10,10 +10,44 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2021_10_20_054401) do
+ActiveRecord::Schema.define(version: 2021_10_20_200149) do
+
+  create_table "bungie_activities", charset: "utf8", force: :cascade do |t|
+    t.datetime "started_at"
+    t.integer "duration"
+    t.integer "instance_id"
+    t.integer "mode"
+    t.boolean "is_private", default: false, null: false
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+  end
+
+  create_table "bungie_activity_players", charset: "utf8", force: :cascade do |t|
+    t.bigint "bungie_activity_id"
+    t.bigint "bungie_character_id"
+    t.bigint "bungie_activity_team_id"
+    t.integer "standing"
+    t.decimal "score", precision: 10
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index ["bungie_activity_id"], name: "index_bungie_activity_players_on_bungie_activity_id"
+    t.index ["bungie_activity_team_id"], name: "index_bungie_activity_players_on_bungie_activity_team_id"
+    t.index ["bungie_character_id"], name: "index_bungie_activity_players_on_bungie_character_id"
+  end
+
+  create_table "bungie_activity_teams", charset: "utf8", force: :cascade do |t|
+    t.bigint "bungie_activity_id"
+    t.integer "team_id"
+    t.string "team_name"
+    t.integer "standing"
+    t.decimal "score", precision: 10
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index ["bungie_activity_id"], name: "index_bungie_activity_teams_on_bungie_activity_id"
+  end
 
   create_table "bungie_characters", charset: "utf8", force: :cascade do |t|
-    t.bigint "bungie_membership_id", null: false
+    t.bigint "membership_id", null: false
     t.string "character_id"
     t.string "race_hash"
     t.string "race_name"
@@ -23,8 +57,8 @@ ActiveRecord::Schema.define(version: 2021_10_20_054401) do
     t.string "gender_name"
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
-    t.index ["bungie_membership_id"], name: "index_bungie_characters_on_bungie_membership_id"
     t.index ["character_id"], name: "index_bungie_characters_on_character_id", unique: true
+    t.index ["membership_id"], name: "index_bungie_characters_on_membership_id"
   end
 
   create_table "bungie_memberships", charset: "utf8", force: :cascade do |t|
@@ -82,14 +116,14 @@ ActiveRecord::Schema.define(version: 2021_10_20_054401) do
   end
 
   create_table "slack_users", charset: "utf8", force: :cascade do |t|
-    t.bigint "slack_team_id", null: false
+    t.bigint "team_id", null: false
     t.string "user_id"
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
     t.bigint "bungie_user_id"
     t.index ["bungie_user_id"], name: "index_slack_users_on_bungie_user_id"
-    t.index ["slack_team_id", "user_id"], name: "index_slack_users_on_slack_team_id_and_user_id", unique: true
-    t.index ["slack_team_id"], name: "index_slack_users_on_slack_team_id"
+    t.index ["team_id", "user_id"], name: "index_slack_users_on_team_id_and_user_id", unique: true
+    t.index ["team_id"], name: "index_slack_users_on_team_id"
   end
 
   create_table "twitch_users", charset: "utf8", force: :cascade do |t|
@@ -124,11 +158,15 @@ ActiveRecord::Schema.define(version: 2021_10_20_054401) do
     t.index ["twitch_user_id"], name: "index_twitch_videos_on_twitch_user_id"
   end
 
-  add_foreign_key "bungie_characters", "bungie_memberships"
+  add_foreign_key "bungie_activity_players", "bungie_activities", on_delete: :cascade
+  add_foreign_key "bungie_activity_players", "bungie_activity_teams", on_delete: :cascade
+  add_foreign_key "bungie_activity_players", "bungie_characters", on_delete: :cascade
+  add_foreign_key "bungie_activity_teams", "bungie_activities", on_delete: :cascade
+  add_foreign_key "bungie_characters", "bungie_memberships", column: "membership_id"
   add_foreign_key "bungie_memberships", "bungie_users"
   add_foreign_key "bungie_users", "twitch_users"
   add_foreign_key "discord_users", "bungie_users"
   add_foreign_key "slack_users", "bungie_users"
-  add_foreign_key "slack_users", "slack_teams"
+  add_foreign_key "slack_users", "slack_teams", column: "team_id"
   add_foreign_key "twitch_videos", "twitch_users"
 end

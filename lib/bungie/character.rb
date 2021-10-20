@@ -2,14 +2,14 @@
 
 module Bungie
   # Represent a Bungie.net character
-  class BungieCharacter < ActiveRecord::Base
-    belongs_to :bungie_membership
+  class Character < ActiveRecord::Base
+    belongs_to :membership
 
     attr_accessor :item_rows
 
 
-    def load_activities
-      Bungie::Api.get_activities_for_character(bungie_membership&.membership_type, bungie_membership&.membership_id, character_id)
+    def load_activities(mode: nil)
+      Bungie::Api.instance.get_activities_for_character(bungie_membership&.membership_type, bungie_membership&.membership_id, character_id, mode: mode)
     end
 
 
@@ -17,10 +17,10 @@ module Bungie
       return nil unless bungie_membership
 
 
-      characters = Bungie::Api.instance.get_characters_for_membership(bungie_membership&.membership_type, bungie_membership&.membership_id, include_equipment: include_equipment)
+      characters = Bungie::Api.instance.get_characters_for_membership(bungie_membership.membership_type, bungie_membership.membership_id, include_equipment: include_equipment)
       raise QueryError, "Couldn't find characters for the requested user." unless characters
 
-      characters.map do |character_hash|
+      characters.transform_values do |character_hash|
         create_or_update_from_hash(character_hash, bungie_membership)
       end
     end
@@ -30,7 +30,7 @@ module Bungie
       return nil unless bungie_membership
 
 
-      character_hash = Bungie::Api.instance.get_active_character_for_membership(bungie_membership&.membership_type, bungie_membership&.membership_id, include_equipment: include_equipment)
+      character_hash = Bungie::Api.instance.get_active_character_for_membership(bungie_membership.membership_type, bungie_membership.membership_id, include_equipment: include_equipment)
       raise QueryError, "Couldn't find the most recently used character for the requested user." unless character_hash
 
       create_or_update_from_hash(character_hash, bungie_membership)
@@ -42,7 +42,7 @@ module Bungie
       return nil unless character_hash
 
 
-      character             = BungieCharacter.find_or_initialize_by(bungie_membership: bungie_membership, character_id: character_hash['characterId'])
+      character             = Bungie::Character.find_or_initialize_by(membership: bungie_membership, character_id: character_hash['characterId'].to_i)
       character.race_hash   = character_hash['raceHash']
       character.race_name   = character_hash['raceHash'] ###############
       character.class_hash  = character_hash['classHash']

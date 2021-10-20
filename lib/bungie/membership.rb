@@ -2,9 +2,9 @@
 
 module Bungie
   # Represent a Bungie.net membership
-  class BungieMembership < ActiveRecord::Base
-    belongs_to :bungie_user
-    has_many :bungie_characters
+  class Membership < ActiveRecord::Base
+    belongs_to :bungie_user, class_name: 'Bungie::User', foreign_key: 'bungie_user_id'
+    has_many :characters
 
 
     def bungie_name
@@ -18,12 +18,12 @@ module Bungie
 
 
     def load_characters
-      bungie_characters = Bungie::BungieCharacter.load_characters_for_bungie_membership(self)
+      characters = Bungie::Character.load_characters_for_bungie_membership(self)
     end
 
 
     def load_active_character_with_equipment
-      Bungie::BungieCharacter.load_active_character_for_bungie_membership(self, include_equipment: true)
+      Bungie::Character.load_active_character_for_bungie_membership(self, include_equipment: true)
     end
 
 
@@ -60,10 +60,10 @@ module Bungie
       end
 
 
-      bungie_user = Bungie::BungieUser.load_by_destiny_membership_id(membership_row['membershipId'])
+      bungie_user = Bungie::User.load_by_destiny_membership_id(membership_row['membershipId'])
 
 
-      membership                 = BungieMembership.find_or_initialize_by(bungie_user: bungie_user, membership_id: membership_row['membershipId'])
+      membership                 = Bungie::Membership.find_or_initialize_by(bungie_user: bungie_user, membership_id: membership_row['membershipId'])
       membership.membership_type = membership_row['membershipType']
       membership.display_name    = membership_row['displayName']
 

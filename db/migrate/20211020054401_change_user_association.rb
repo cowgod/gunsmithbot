@@ -9,7 +9,7 @@ class ChangeUserAssociation < ActiveRecord::Migration[6.1]
 
 
     # Associate each Slack user with its associated Bungie user
-    Slack::SlackUser.all.each do |user|
+    Slack::User.all.each do |user|
       user.bungie_user = user&.bungie_membership&.bungie_user
       user.save
     end
@@ -28,7 +28,7 @@ class ChangeUserAssociation < ActiveRecord::Migration[6.1]
 
 
     # Associate each Discord user with its associated Bungie user
-    Discord::DiscordUser.all.each do |user|
+    Discord::User.all.each do |user|
       user.bungie_user = user&.bungie_membership&.bungie_user
       user.save
     end

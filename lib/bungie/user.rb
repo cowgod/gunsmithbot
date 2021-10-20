@@ -2,11 +2,11 @@
 
 module Bungie
   # Represent a Bungie.net membership
-  class BungieUser < ActiveRecord::Base
-    has_many :bungie_memberships
-    has_many :slack_users, class_name: 'Slack::SlackUser'
-    has_many :discord_users, class_name: 'Discord::DiscordUser'
-    belongs_to :twitch_user, class_name: 'Twitch::TwitchUser'
+  class User < ActiveRecord::Base
+    has_many :memberships, class_name: 'Bungie::Membership', foreign_key: 'bungie_user_id'
+    has_many :slack_users, class_name: 'Slack::User'
+    has_many :discord_users, class_name: 'Discord::User'
+    belongs_to :twitch_user, class_name: 'Twitch::User'
 
 
 
@@ -39,7 +39,7 @@ module Bungie
 
 
     def self.create_or_update_from_hash(user_hash)
-      user = BungieUser.find_or_initialize_by(membership_id: user_hash&.dig('membershipId'))
+      user = User.find_or_initialize_by(membership_id: user_hash&.dig('membershipId'))
 
       user.unique_name              = user_hash&.dig('uniqueName')
       user.display_name             = user_hash&.dig('displayName')

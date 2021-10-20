@@ -2,8 +2,8 @@
 
 module Twitch
   # Represent a Twitch user
-  class TwitchVideo < ActiveRecord::Base
-    belongs_to :twitch_user
+  class Video < ActiveRecord::Base
+    belongs_to :user
 
 
     def self.load_videos_for_user_id(user_id, twitch_user: nil)
@@ -30,9 +30,9 @@ module Twitch
     def self.create_or_update_from_hash(video_hash, twitch_user)
       return nil unless video_hash&.dig('id')
 
-      twitch_user ||= Twitch::TwitchUser.load_by_user_id(results&.dig('user_id'))
+      twitch_user ||= Twitch::User.load_by_user_id(results&.dig('user_id'))
 
-      video = Twitch::TwitchVideo.find_or_initialize_by(twitch_user: twitch_user, video_id: video_hash&.dig('id'))
+      video = Twitch::Video.find_or_initialize_by(twitch_user: twitch_user, video_id: video_hash&.dig('id'))
 
       video.video_id      = video_hash&.dig('id').to_i
       video.stream_id     = video_hash&.dig('stream_id').to_i
