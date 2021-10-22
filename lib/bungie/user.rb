@@ -21,7 +21,7 @@ module Bungie
 
       # Load the memberships for this platform membership, which will include info about the Bungie membership ID
       results = Bungie::Api.instance.get_memberships_for_membership_id(membership_id)
-      raise QueryError, "Couldn't find the requested user." unless results&.dig('bungieNetUser')&.dig('membershipId')
+      return nil unless results&.dig('bungieNetUser')&.dig('membershipId')
 
       # Load the Bungie user for this Bungie membership ID
       load_by_bungie_membership_id(results&.dig('bungieNetUser')&.dig('membershipId'))
@@ -32,7 +32,7 @@ module Bungie
       return nil unless membership_id
 
       user_hash = Bungie::Api.instance.get_bungie_user_for_membership_id(membership_id)
-      raise QueryError, "Couldn't find the requested user." unless user_hash&.dig('membershipId')
+      return nil unless user_hash&.dig('membershipId')
 
       create_or_update_from_hash(user_hash)
     end
@@ -52,8 +52,8 @@ module Bungie
       user.bungie_display_name      = user_hash&.dig('cachedBungieGlobalDisplayName')
       user.bungie_display_name_code = user_hash&.dig('cachedBungieGlobalDisplayNameCode')
       user.about                    = user_hash&.dig('about')
-      user.first_accessed_at        = DateTime.parse(user_hash&.dig('firstAccess'))
-      user.last_updated_at          = DateTime.parse(user_hash&.dig('lastUpdate'))
+      user.first_accessed_at        = Time.parse(user_hash&.dig('firstAccess'))
+      user.last_updated_at          = Time.parse(user_hash&.dig('lastUpdate'))
 
       user.save
 

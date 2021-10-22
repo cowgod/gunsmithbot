@@ -85,6 +85,7 @@ module Gunsmith
 
 
 
+    ###### UNUSED SO FAR
     def load_pgcrs_for_membership(bungie_membership)
       results[:bungie_membership] = bungie_membership
 

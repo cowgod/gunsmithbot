@@ -37,8 +37,8 @@ class SupportTwitchReporting < ActiveRecord::Migration[6.1]
 
 
     change_table :bungie_users do |t|
-      t.references :twitch_user, foreign_key: true
-      t.boolean :find_twitch_streams, null: false, default: false
+      t.references :twitch_user, foreign_key: true, after: :id
+      t.boolean :find_twitch_streams, null: false, default: false, after: :last_updated_at
     end
 
 
@@ -48,11 +48,6 @@ class SupportTwitchReporting < ActiveRecord::Migration[6.1]
     #   t.timestamps
     # end
 
-
-    # create_table :post_game_carnage_reports do |t|
-    #
-    #   t.timestamps
-    # end
 
   end
 end

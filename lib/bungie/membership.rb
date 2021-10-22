@@ -18,13 +18,16 @@ module Bungie
 
 
     def load_characters
-      characters = Bungie::Character.load_characters_for_bungie_membership(self)
+      characters = Bungie::Character.load_characters_for_membership(self)
     end
 
 
     def load_active_character_with_equipment
-      Bungie::Character.load_active_character_for_bungie_membership(self, include_equipment: true)
+      Bungie::Character.load_active_character_for_membership(self, include_equipment: true)
     end
+
+
+    ###### TODO -- we can't always assume crossplay is on. Need to be able to instantiate by both membership_type and membership_id
 
 
     def self.load_by_id(membership_id)

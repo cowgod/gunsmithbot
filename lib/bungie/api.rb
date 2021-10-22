@@ -419,24 +419,6 @@ module Bungie
     end
 
 
-    def get_active_character_for_membership(membership_type, membership_id, include_equipment: false)
-      characters = get_characters_for_membership(membership_type, membership_id, include_equipment: include_equipment)
-      return nil unless characters
-
-      latest_time_played = Time.new(1980, 1, 1)
-      active_character   = nil
-
-      characters.each_pair do |_, character|
-        if character && Time.parse(character['dateLastPlayed']) > latest_time_played
-          active_character   = character
-          latest_time_played = Time.parse(character['dateLastPlayed'])
-        end
-      end
-
-      active_character
-    end
-
-
     def get_characters_for_membership(membership_type, membership_id, include_equipment: false)
       url = "/Destiny2/#{membership_type.to_s.uri_encode}/Profile/#{membership_id.to_s.uri_encode}/"
 
@@ -459,6 +441,11 @@ module Bungie
       characters = response.parsed_response['Response']&.dig('characters', 'data')
       return nil unless characters
 
+
+      # The API already returns these in a hash with the characterId as the
+      # key, so no additional conversion is necessary
+
+
       if include_equipment
         characters.each_key do |character_id|
           characters[character_id]['items'] = response.parsed_response['Response']&.dig('characterEquipment', 'data', character_id, 'items')
@@ -466,6 +453,58 @@ module Bungie
       end
 
       characters
+    end
+
+
+    def get_active_character_for_membership(membership_type, membership_id, include_equipment: false)
+      characters = get_characters_for_membership(membership_type, membership_id, include_equipment: include_equipment)
+      return nil unless characters
+
+      latest_time_played = Time.new(1980, 1, 1)
+      active_character   = nil
+
+      characters.each_pair do |_, character|
+        if character && Time.parse(character['dateLastPlayed']) > latest_time_played
+          active_character   = character
+          latest_time_played = Time.parse(character['dateLastPlayed'])
+        end
+      end
+
+      active_character
+    end
+
+
+    def get_character(membership_type, membership_id, character_id, include_equipment: false)
+      return nil unless membership_type && membership_id && character_id
+
+
+      url = "/Destiny2/#{membership_type.to_s.uri_encode}/Profile/#{membership_id.to_s.uri_encode}/Character/#{character_id}/"
+
+      desired_components = [COMPONENTS[:Characters]]
+      desired_components << COMPONENTS[:CharacterEquipment] if include_equipment
+
+
+      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
+
+      response = self.class.get(
+        url,
+        @options.merge(
+          query: {
+            components: desired_components.join(',')
+          }
+        )
+      )
+      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
+
+      character = response.parsed_response['Response']&.dig('character', 'data')
+      return nil unless character
+
+
+      if include_equipment
+        character['items'] = response.parsed_response['Response']&.dig('equipment', 'data', 'items')
+      end
+
+      character
     end
 
 
@@ -719,51 +758,52 @@ module Bungie
 
     # Get activities for a character
     # https://bungie-net.github.io/multi/operation_get_Destiny2-GetActivityHistory.html#operation_get_Destiny2-GetActivityHistory
-    def get_activities_for_character(membership_type_id, membership_id, character_id, mode: nil)
+    def get_activities_for_character(membership_type_id, membership_id, character_id, num_activities: nil, page_number: nil, mode: nil)
       # If they didn't provide all required values, there's nothing we can do
       return nil unless membership_type_id && membership_id && character_id
 
 
       url = "/Destiny2/#{membership_type_id.to_s.uri_encode}/Account/#{membership_id.to_s.uri_encode}/Character/#{character_id.to_s.uri_encode}/Stats/Activities/"
 
+      query_options         = {}
+      query_options[:page]  = page_number if page_number
+      query_options[:count] = num_activities if num_activities
+      query_options[:mode]  = mode if mode
+
       Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
 
       response = self.class.get(
         url,
         @options.merge(
-          query: {
-            mode: mode
-          }
+          query: query_options
         )
       )
       raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
 
-      response.parsed_response&.dig('Response', 'activities') || []
+      activities = response.parsed_response&.dig('Response', 'activities') || []
+
+
+      # Map the rows into a hash by their associated instance ID
+      activities.map { |activity| [activity.dig('activityDetails', 'instanceId').to_i, activity] }.to_h
     end
 
 
     # Get PGCR for an activity
     # https://bungie-net.github.io/multi/operation_get_Destiny2-GetPostGameCarnageReport.html#operation_get_Destiny2-GetPostGameCarnageReport
     def get_pgcr_for_activity(activity_id)
-      ####### TODO
-      #
-      #
-      #
-      #
-      # If they didn't give us a Bungie Name to search, there's nothing we can do
-      return nil unless requested_bungie_name
+      # If they didn't give us an activity_id to search, there's nothing we can do
+      return nil unless activity_id
 
-      # Now that crossplay is in effect, we always want to specify "all" for the platform
-      membership_type_id = -1
+      url = "/Destiny2/Stats/PostGameCarnageReport/#{activity_id.to_s.uri_encode}/"
 
-      url = "/Destiny2/SearchDestinyPlayer/#{membership_type_id.to_s.uri_encode}/#{requested_bungie_name.to_s.uri_encode}/"
 
       Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
 
       response = self.class.get(url, @options)
       raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
 
-      response.parsed_response&.dig('Response') || []
+
+      response.parsed_response['Response'] || {}
     end
 
 

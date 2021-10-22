@@ -3,42 +3,58 @@ class ChangeUserAssociation < ActiveRecord::Migration[6.1]
 
 
     # Add bungie_user_id column to slack_users table
-    change_table :slack_users do |t|
-      t.references :bungie_user, foreign_key: true
-    end
-
-
-    # Associate each Slack user with its associated Bungie user
-    Slack::User.all.each do |user|
-      user.bungie_user = user&.bungie_membership&.bungie_user
-      user.save
-    end
-
-
-    # Get rid of the unused bungie_membership_id column
-    change_table :slack_users do |t|
-      t.remove :bungie_membership_id
-    end
-
+    add_column :slack_users, :bungie_user_id, :bigint, after: :user_id
+    add_foreign_key :slack_users, :bungie_users, name: :fk_slack_bungie_user
 
     # Add bungie_user_id column to discord_users table
-    change_table :discord_users do |t|
-      t.references :bungie_user, foreign_key: true
+    add_column :discord_users, :bungie_user_id, :bigint, after: :user_id
+    add_foreign_key :discord_users, :bungie_users, name: :fk_discord_bungie_user
+
+
+    reversible do |migration|
+      migration.up do
+        # Associate each Slack user with its associated Bungie user
+        execute <<~SQL
+          UPDATE IGNORE
+            slack_users SU
+              INNER JOIN bungie_memberships BM ON SU.bungie_membership_id = BM.membership_id
+              INNER JOIN bungie_users BU ON BM.bungie_user_id = BU.id
+          SET
+            SU.bungie_user_id = BU.id
+          WHERE
+            BU.id IS NOT NULL
+          ;
+        SQL
+
+        # Associate each Discord user with its associated Bungie user
+        execute <<~SQL
+          UPDATE IGNORE
+            discord_users DU
+              INNER JOIN bungie_memberships BM ON DU.bungie_membership_id = BM.membership_id
+              INNER JOIN bungie_users BU ON BM.bungie_user_id = BU.id
+          SET
+            DU.bungie_user_id = BU.id
+          WHERE
+            BU.id IS NOT NULL
+          ;
+        SQL
+      end
+
+      migration.down do
+        # Nothing to do on the way down
+      end
     end
 
 
-    # Associate each Discord user with its associated Bungie user
-    Discord::User.all.each do |user|
-      user.bungie_user = user&.bungie_membership&.bungie_user
-      user.save
+    # Get rid of the unused bungie_membership_id column
+    change_table :slack_users do |t|
+      t.remove :bungie_membership_id
     end
-
 
     # Get rid of the unused bungie_membership_id column
     change_table :discord_users do |t|
       t.remove :bungie_membership_id
     end
-
 
   end
 end

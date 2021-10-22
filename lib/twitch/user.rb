@@ -17,7 +17,7 @@ module Twitch
       return nil unless user_id
 
       results = Twitch::Api.instance.get_twitch_user_for_user_id(user_id)
-      raise QueryError, "Couldn't find the requested user." unless results&.dig('id')
+      return nil unless results&.dig('id')
 
 
       create_or_update_from_hash(results)
@@ -28,7 +28,7 @@ module Twitch
       return nil unless display_name
 
       results = Twitch::Api.instance.get_twitch_user_for_display_name(display_name)
-      raise QueryError, "Couldn't find the requested user." unless results&.dig('id')
+      return nil unless results&.dig('id')
 
 
       create_or_update_from_hash(results)
@@ -39,9 +39,9 @@ module Twitch
       return nil unless user_hash&.dig('id')
 
 
-      user = Twitch::User.find_or_initialize_by(user_id: user_hash&.dig('id'))
+      user = Twitch::User.find_or_initialize_by(user_id: user_hash&.dig('id').to_i)
 
-      user.login_name         = user_hash&.dig('login').to_i
+      user.login_name         = user_hash&.dig('login')
       user.display_name       = user_hash&.dig('display_name')
       user.broadcaster_type   = user_hash&.dig('broadcaster_type')
       user.description        = user_hash&.dig('description')
