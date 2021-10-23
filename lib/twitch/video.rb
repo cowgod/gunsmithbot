@@ -3,24 +3,37 @@
 module Twitch
   # Represent a Twitch user
   class Video < ActiveRecord::Base
-    belongs_to :user
+    belongs_to :twitch_user, class_name: 'Twitch::User'
+
+
+
+    def ended_at
+      started_at + duration
+    end
+
+
+    def contains_activity(activity)
+      raise ArgumentError unless activity.is_a? Bungie::Activities::Activity
+
+      (started_at <= activity.started_at) && (ended_at >= activity.ended_at)
+    end
 
 
     def self.load_videos_for_user_id(user_id, twitch_user: nil)
-      return nil unless user_id
+      raise ArgumentError unless user_id
 
       results = Twitch::Api.instance.get_twitch_videos_for_user_id(user_id)
-      return nil unless results&.size&.positive?
+      return [] unless results&.size&.positive?
 
       results.map { |video_hash| create_or_update_from_hash(video_hash, twitch_user) }
     end
 
 
     def self.load_by_video_id(video_id, twitch_user: nil)
-      return nil unless video_id
+      raise ArgumentError unless video_id
 
       results = Twitch::Api.instance.get_twitch_video_for_video_id(video_id)
-      return nil unless results&.dig('id')
+      return [] unless results&.dig('id')
 
       create_or_update_from_hash(results, twitch_user)
     end
@@ -30,7 +43,7 @@ module Twitch
     def self.create_or_update_from_hash(video_hash, twitch_user)
       return nil unless video_hash&.dig('id')
 
-      twitch_user ||= Twitch::User.load_by_user_id(results&.dig('user_id'))
+      twitch_user ||= Twitch::User.load_by_user_id(video_hash&.dig('user_id'))
 
       video = Twitch::Video.find_or_initialize_by(video_id: video_hash&.dig('id').to_i)
 
@@ -45,7 +58,7 @@ module Twitch
       video.viewable      = video_hash&.dig('viewable')
       video.view_count    = video_hash&.dig('view_count').to_i
       video.language      = video_hash&.dig('language')
-      video.type          = video_hash&.dig('type')
+      video.video_type    = video_hash&.dig('type')
       video.duration      = video_hash&.dig('duration').to_i
 
       video.save

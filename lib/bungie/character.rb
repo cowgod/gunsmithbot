@@ -14,17 +14,19 @@ module Bungie
     # end
 
     def load_unscanned_activities(mode: nil)
-      activities = Bungie::Activities::Activity.load_unscanned_activities_for_character(self, mode: mode)
+      self.activities = Bungie::Activities::Activity.load_unscanned_activities_for_character(self, mode: mode)
+      save
+      activities
     end
 
 
 
     def self.load_characters_for_membership(membership, include_equipment: false)
-      return nil unless membership
+      raise ArgumentError unless membership
 
 
       characters = Bungie::Api.instance.get_characters_for_membership(membership.membership_type, membership.membership_id, include_equipment: include_equipment)
-      return nil unless characters
+      return {} unless characters
 
       characters.transform_values do |character_hash|
         create_or_update_from_hash(character_hash, membership)
@@ -33,7 +35,7 @@ module Bungie
 
 
     def self.load_active_character_for_membership(membership, include_equipment: false)
-      return nil unless membership
+      raise ArgumentError unless membership
 
 
       character_hash = Bungie::Api.instance.get_active_character_for_membership(membership.membership_type, membership.membership_id, include_equipment: include_equipment)

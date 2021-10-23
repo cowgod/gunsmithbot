@@ -18,7 +18,7 @@ module Bungie
 
 
     def load_characters
-      characters = Bungie::Character.load_characters_for_membership(self)
+      Bungie::Character.load_characters_for_membership(self)
     end
 
 

@@ -10,31 +10,42 @@ require_relative '../environment'
 
 Bungie::User.where(find_twitch_streams: true)&.each do |bungie_user|
   bungie_user&.memberships&.each do |membership|
-    membership&.load_characters&.values&.each do |character|
-      character&.load_unscanned_activities(mode: Bungie::Api::ACTIVITY_MODES[:all_pvp])&.each_value do |activity|
+    membership.load_characters&.values&.each do |character|
+      # character.load_unscanned_activities(mode: Bungie::Api::ACTIVITY_MODES[:all_pvp])&.each_value do |activity|
+      character.load_unscanned_activities(mode: Bungie::Api::ACTIVITY_MODES[:trials_of_osiris])&.each_value do |activity|
+
         activity.players&.with_twitch_account&.each do |player|
+          twitch_user = player.bungie_user&.load_twitch_user
+          next unless twitch_user
 
-          #     Load the user's bungie account
-          #     Load the user's twitch account
-          #     Load the user's twitch videos
-          #     Look for a twitch video containing the time window of the PGCR
-          #     If found, save it to match_clips table
+          twitch_user.load_videos.each do |video|
+            next unless video.contains_activity(activity)
 
+            log_msg = "Found clip for user '#{bungie_user.bungie_name}' "
+            log_msg += "from Twitch user #{twitch_user.display_name} "
+            # log_msg += "in activity #{Bungie::Manifest.instance.lookup_activity(activity.director_activity_hash)} "
+            # log_msg += "on #{Bungie::Manifest.instance.lookup_activity(clip.activity.reference_id)} "
+            log_msg += "on #{activity.started_at}"
+            pp log_msg
+
+            Bungie::Activities::Clip.find_or_create_by(activity: activity, twitch_video: video)
+          end
+
+
+          # Mark activity as scanned
+          activity.scanned_at = Time.now
+          activity.save
         end
       end
     end
   end
-
-
-  # videos = bungie_user&.twitch_user&.load_videos
-
-
-  # # Load twitch account
-  # twitch_account = Twitch::Api.instance.get_twitch_user_for_display_name(bungie_membership.bungie_user.twitch_display_name)
-  # twitch_videos  = Twitch::Api.instance.get_twitch_videos_for_user_id(twitch_account['id'])
-
-
-  # pp videos
 end
+
+pp "Done."
+
+
+# For clips pending reporting
+#   Get list of all tracked users contained in clip
+#   Report in each channel (how do we handle the fact that one user might want us to report in more than one place, but not everyone in the clip might be present in each server?)
 
 

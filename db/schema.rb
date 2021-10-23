@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2021_10_21_182418) do
+ActiveRecord::Schema.define(version: 2021_10_23_054157) do
 
   create_table "bungie_activities", charset: "utf8", force: :cascade do |t|
     t.datetime "started_at", null: false
@@ -24,6 +24,16 @@ ActiveRecord::Schema.define(version: 2021_10_21_182418) do
     t.datetime "scanned_at"
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
+  end
+
+  create_table "bungie_activity_clips", charset: "utf8", force: :cascade do |t|
+    t.bigint "bungie_activity_id", null: false
+    t.bigint "twitch_video_id", null: false
+    t.datetime "reported_at"
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index ["bungie_activity_id"], name: "index_bungie_activity_clips_on_bungie_activity_id"
+    t.index ["twitch_video_id"], name: "index_bungie_activity_clips_on_twitch_video_id"
   end
 
   create_table "bungie_activity_players", charset: "utf8", force: :cascade do |t|
@@ -131,7 +141,7 @@ ActiveRecord::Schema.define(version: 2021_10_21_182418) do
   end
 
   create_table "twitch_users", charset: "utf8", force: :cascade do |t|
-    t.integer "user_id"
+    t.bigint "user_id"
     t.string "login_name"
     t.string "display_name"
     t.string "broadcaster_type"
@@ -146,8 +156,8 @@ ActiveRecord::Schema.define(version: 2021_10_21_182418) do
 
   create_table "twitch_videos", charset: "utf8", force: :cascade do |t|
     t.bigint "twitch_user_id"
-    t.integer "video_id"
-    t.integer "stream_id"
+    t.bigint "video_id"
+    t.bigint "stream_id"
     t.string "title"
     t.string "description"
     t.datetime "started_at"
@@ -157,11 +167,13 @@ ActiveRecord::Schema.define(version: 2021_10_21_182418) do
     t.string "viewable"
     t.integer "view_count"
     t.string "language"
-    t.string "type"
+    t.string "video_type"
     t.integer "duration"
     t.index ["twitch_user_id"], name: "index_twitch_videos_on_twitch_user_id"
   end
 
+  add_foreign_key "bungie_activity_clips", "bungie_activities", on_delete: :cascade
+  add_foreign_key "bungie_activity_clips", "twitch_videos", on_delete: :cascade
   add_foreign_key "bungie_activity_players", "bungie_activities", on_delete: :cascade
   add_foreign_key "bungie_activity_players", "bungie_activity_teams", on_delete: :cascade
   add_foreign_key "bungie_activity_players", "bungie_characters", on_delete: :cascade

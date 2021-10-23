@@ -22,6 +22,12 @@ module Bungie
             }
           )
       }
+
+
+      def bungie_user
+        character&.membership&.bungie_user
+      end
+
     end
   end
 end

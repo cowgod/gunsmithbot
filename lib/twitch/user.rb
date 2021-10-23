@@ -9,12 +9,12 @@ module Twitch
 
 
     def load_videos
-      twitch_videos = Twitch::Video.load_videos_for_user_id(user_id)
+      Twitch::Video.load_videos_for_user_id(user_id, twitch_user: self)
     end
 
 
     def self.load_by_user_id(user_id)
-      return nil unless user_id
+      raise ArgumentError unless user_id
 
       results = Twitch::Api.instance.get_twitch_user_for_user_id(user_id)
       return nil unless results&.dig('id')
@@ -25,7 +25,7 @@ module Twitch
 
 
     def self.load_by_display_name(display_name)
-      return nil unless display_name
+      raise ArgumentError unless display_name
 
       results = Twitch::Api.instance.get_twitch_user_for_display_name(display_name)
       return nil unless results&.dig('id')
@@ -39,7 +39,7 @@ module Twitch
       return nil unless user_hash&.dig('id')
 
 
-      user = Twitch::User.find_or_initialize_by(user_id: user_hash&.dig('id').to_i)
+      user = find_or_initialize_by(user_id: user_hash&.dig('id').to_i)
 
       user.login_name         = user_hash&.dig('login')
       user.display_name       = user_hash&.dig('display_name')

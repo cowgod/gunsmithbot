@@ -12,7 +12,7 @@ module Bungie
 
 
       ACTIVITIES_PER_PAGE = 25
-      MAX_PAGES_PER_CALL  = 2
+      MAX_PAGES_PER_CALL  = 4
 
 
       # def load_activities(mode: nil)
@@ -21,8 +21,14 @@ module Bungie
       # end
 
 
+      def ended_at
+        started_at + duration
+      end
+
+
+
       def self.load_unscanned_activities_for_character(character, mode: nil)
-        return nil unless character
+        raise ArgumentError unless character
 
 
         # Initialize the output hash

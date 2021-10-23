@@ -15,6 +15,12 @@ module Bungie
     end
 
 
+    def load_twitch_user
+      self.twitch_user = Twitch::User.load_by_display_name(twitch_display_name)
+      save
+      twitch_user
+    end
+
 
     def self.load_by_destiny_membership_id(membership_id)
       return nil unless membership_id
