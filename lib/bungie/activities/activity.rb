@@ -26,6 +26,31 @@ module Bungie
       end
 
 
+      def map_manifest_entry
+        Bungie::Api.instance.manifest.lookup_activity(reference_id)
+      end
+
+
+      def map_name
+        map_manifest_entry&.dig('displayProperties', 'name')
+      end
+
+
+      def map_thumbnail_url
+        "https://www.bungie.net/#{map_manifest_entry['pgcrImage']&.sub(%r{^/}, '') || 'img/theme/destiny/bgs/pgcrs/placeholder.jpg'}"
+      end
+
+
+      def activity_manifest_entry
+        Bungie::Api.instance.manifest.lookup_activity(director_activity_hash)
+      end
+
+
+      def activity_name
+        activity_manifest_entry&.dig('displayProperties', 'name')
+      end
+
+
 
       def self.load_unscanned_activities_for_character(character, mode: nil)
         raise ArgumentError unless character

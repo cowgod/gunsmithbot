@@ -513,25 +513,13 @@ HELP
     def self.notify_twitch_clip(clip:, webhook_url:)
       raise ArgumentError unless clip && webhook_url
 
-      bungie_users = clip.activity&.players&.map(&:bungie_user)&.select(&:find_twitch_clips)
-
-      map      = Bungie::Api.instance.manifest.lookup_activity(clip.activity.reference_id)
-      activity = Bungie::Api.instance.manifest.lookup_activity(clip.activity.director_activity_hash)
-
 
       streamer_name     = clip.twitch_video&.twitch_user&.display_name || '(unknown)'
-      map_name          = map&.dig('displayProperties', 'name') || '(unknown)'
-      activity_name     = activity&.dig('displayProperties', 'name') || '(unknown)'
-      map_thumbnail_url = map['pgcrImage'] || '/img/theme/destiny/bgs/pgcrs/placeholder.jpg'
-      # map_thumbnail_url = map&.dig('displayProperties', 'icon') || '/img/misc/missing_icon_d2.png'
-      clip_url = clip.url
-      # saint_14_icon_url = "URL FOR SAINT 14 IMAGE (imgur?) 'https://i.imgur.com/PcMltU7.jpg'"
+      map_name          = clip.activity&.map_name || '(unknown)'
+      activity_name     = clip.activity&.activity_name || '(unknown)'
+      map_thumbnail_url = clip.activity&.map_thumbnail_url
+      clip_url          = clip.url
 
-
-      map_thumbnail_url = "https://www.bungie.net/#{map_thumbnail_url}"
-
-
-      client = Discordrb::Webhooks::Client.new(url: webhook_url)
 
       body_username = CONFIG&.dig('twitch_clips', 'bot_name') || SAINT_BOT_NAME
       body_text     = 'New Twitch clip found!'
@@ -542,17 +530,17 @@ HELP
 
       embed_fields = []
 
-      bungie_users.each do |bungie_user|
+      clip.activity&.players&.map(&:bungie_user)&.select(&:find_twitch_clips).each do |bungie_user|
         # Find the player that corresponds to this bungie_user
         player = clip.activity&.players&.select { |player| player.bungie_user == bungie_user }&.first
         next unless player
 
         field_text =
           [
-            "Kills: #{player.kills}",
-            "Deaths: #{player.deaths}",
-            "K/D: #{player.kd}",
-          ].join(' | ')
+            "**K:** #{player.kills}",
+            "**D:** #{player.deaths}",
+            "**K/D:** #{player.kd}"
+          ].join(' **|** ')
 
         embed_fields.push({
                             name:   bungie_user.bungie_name,
@@ -563,6 +551,8 @@ HELP
 
 
       Cowgod::Logger.log "#{self.class}.#{__method__} - Notifying clip: #{embed_title} (#{embed_timestamp.getlocal.strftime('%Y-%m-%d %I:%M %P')})"
+
+      client = Discordrb::Webhooks::Client.new(url: webhook_url)
 
       begin
         client.execute do |builder|

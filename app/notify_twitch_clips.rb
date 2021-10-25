@@ -34,7 +34,7 @@ Bungie::Activities::Clip.pending_notification.each do |clip|
 
 
   # Send a message to each destination we found
-  notification_destinations[:discord]&.each do |webhook_url|
+  notification_destinations[:discord]&.each_key do |webhook_url|
     Gunsmith::DiscordBot.notify_twitch_clip(
       clip:        clip,
       webhook_url: webhook_url,
@@ -42,7 +42,8 @@ Bungie::Activities::Clip.pending_notification.each do |clip|
   end
 
 
-  notification_destinations[:slack]&.each do |webhook_url|
+  notification_destinations[:slack]&.each_key do |webhook_url|
+    ##### TODO
     # Gunsmith::SlackBot.notify_twitch_clip(
     #   clip:        clip,
     #   webhook_url: webhook_url,
