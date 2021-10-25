@@ -16,7 +16,11 @@ module Twitch
     def self.load_by_user_id(user_id)
       raise ArgumentError unless user_id
 
-      results = Twitch::Api.instance.get_twitch_user_for_user_id(user_id)
+      begin
+        results = Twitch::Api.instance.get_twitch_user_for_user_id(user_id)
+      rescue QueryError
+        return nil
+      end
       return nil unless results&.dig('id')
 
 
@@ -27,7 +31,11 @@ module Twitch
     def self.load_by_display_name(display_name)
       raise ArgumentError unless display_name
 
-      results = Twitch::Api.instance.get_twitch_user_for_display_name(display_name)
+      begin
+        results = Twitch::Api.instance.get_twitch_user_for_display_name(display_name)
+      rescue QueryError
+        return nil
+      end
       return nil unless results&.dig('id')
 
 

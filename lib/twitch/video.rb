@@ -22,7 +22,11 @@ module Twitch
     def self.load_videos_for_user_id(user_id, twitch_user: nil)
       raise ArgumentError unless user_id
 
-      results = Twitch::Api.instance.get_twitch_videos_for_user_id(user_id)
+      begin
+        results = Twitch::Api.instance.get_twitch_videos_for_user_id(user_id)
+      rescue QueryError
+        return []
+      end
       return [] unless results&.size&.positive?
 
       results.map { |video_hash| create_or_update_from_hash(video_hash, twitch_user) }
@@ -32,7 +36,11 @@ module Twitch
     def self.load_by_video_id(video_id, twitch_user: nil)
       raise ArgumentError unless video_id
 
-      results = Twitch::Api.instance.get_twitch_video_for_video_id(video_id)
+      begin
+        results = Twitch::Api.instance.get_twitch_video_for_video_id(video_id)
+      rescue QueryError
+        return []
+      end
       return [] unless results&.dig('id')
 
       create_or_update_from_hash(results, twitch_user)

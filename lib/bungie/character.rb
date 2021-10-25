@@ -25,7 +25,11 @@ module Bungie
       raise ArgumentError unless membership
 
 
-      characters = Bungie::Api.instance.get_characters_for_membership(membership.membership_type, membership.membership_id, include_equipment: include_equipment)
+      begin
+        characters = Bungie::Api.instance.get_characters_for_membership(membership.membership_type, membership.membership_id, include_equipment: include_equipment)
+      rescue QueryError
+        return {}
+      end
       return {} unless characters
 
       characters.transform_values do |character_hash|
@@ -38,7 +42,11 @@ module Bungie
       raise ArgumentError unless membership
 
 
-      character_hash = Bungie::Api.instance.get_active_character_for_membership(membership.membership_type, membership.membership_id, include_equipment: include_equipment)
+      begin
+        character_hash = Bungie::Api.instance.get_active_character_for_membership(membership.membership_type, membership.membership_id, include_equipment: include_equipment)
+      rescue QueryError
+        return nil
+      end
       return nil unless character_hash
 
       create_or_update_from_hash(character_hash, membership)

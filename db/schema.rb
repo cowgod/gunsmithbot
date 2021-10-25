@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2021_10_23_054157) do
+ActiveRecord::Schema.define(version: 2021_10_24_044102) do
 
   create_table "bungie_activities", charset: "utf8", force: :cascade do |t|
     t.datetime "started_at", null: false
@@ -29,7 +29,7 @@ ActiveRecord::Schema.define(version: 2021_10_23_054157) do
   create_table "bungie_activity_clips", charset: "utf8", force: :cascade do |t|
     t.bigint "bungie_activity_id", null: false
     t.bigint "twitch_video_id", null: false
-    t.datetime "reported_at"
+    t.datetime "notified_at"
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
     t.index ["bungie_activity_id"], name: "index_bungie_activity_clips_on_bungie_activity_id"
@@ -105,7 +105,7 @@ ActiveRecord::Schema.define(version: 2021_10_23_054157) do
     t.string "about"
     t.datetime "first_accessed_at"
     t.datetime "last_updated_at"
-    t.boolean "find_twitch_streams", default: false, null: false
+    t.boolean "find_twitch_clips", default: false, null: false
     t.index ["membership_id"], name: "index_bungie_users_on_membership_id", unique: true
     t.index ["twitch_user_id"], name: "index_bungie_users_on_twitch_user_id"
   end
@@ -145,7 +145,7 @@ ActiveRecord::Schema.define(version: 2021_10_23_054157) do
     t.string "login_name"
     t.string "display_name"
     t.string "broadcaster_type"
-    t.string "description"
+    t.text "description"
     t.string "profile_image_url"
     t.string "offline_image_url"
     t.integer "view_count"

@@ -32,7 +32,7 @@ module Bungie
 
     def self.load_by_id(membership_id)
       results = Bungie::Api.instance.get_memberships_for_membership_id(membership_id)
-      raise QueryError, "Couldn't find the requested user." unless results&.dig('destinyMemberships')
+      return nil unless results&.dig('destinyMemberships')
 
       select_and_update_primary_membership(results&.dig('destinyMemberships'))
     end
@@ -40,7 +40,7 @@ module Bungie
 
     def self.load_by_bungie_name(bungie_name)
       membership_rows = Bungie::Api.instance.get_memberships_for_bungie_name(bungie_name)
-      raise QueryError, "Couldn't find the requested user." unless membership_rows&.count&.positive?
+      return nil unless membership_rows&.count&.positive?
 
       select_and_update_primary_membership(membership_rows)
     end

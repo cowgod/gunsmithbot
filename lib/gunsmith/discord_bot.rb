@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require 'discordrb'
 require 'discordrb/webhooks'
 
@@ -8,15 +9,20 @@ module Gunsmith
   # Wrapper for GunsmithBot class, to adapt it to usage in Discord
   class DiscordBot < Discordrb::Bot
     DISCORD_CLIENT_ID = 496066614614294529
-    BOT_NAME          = 'Banshee-44'.freeze
-    BOT_ICON_URL      = 'http://binrock.net/banshee44.png'.freeze
-    BOT_USERNAME      = (ENV['GUNSMITH_BOT_USERNAME'] || 'banshee-44')
+
+    BANSHEE_BOT_NAME     = 'Banshee-44'
+    BANSHEE_BOT_ICON_URL = 'https://i.imgur.com/bYLc6Hn.png'
+    BANSHEE_BOT_USERNAME = (ENV['GUNSMITH_BOT_USERNAME'] || 'banshee-44')
+
+    SAINT_BOT_NAME     = 'Saint-14'
+    SAINT_BOT_ICON_URL = 'https://i.imgur.com/t0xjaer.png'
+    # SAINT_BOT_USERNAME = (ENV['GUNSMITH_BOT_USERNAME'] || 'banshee-44')
 
 
     def initialize
       raise 'DISCORD_API_KEY not set' unless ENV['DISCORD_API_TOKEN'].present?
 
-      @bot = Discordrb::Bot.new token: ENV['DISCORD_API_TOKEN'], name: BOT_NAME, client_id: DISCORD_CLIENT_ID
+      @bot = Discordrb::Bot.new token: ENV['DISCORD_API_TOKEN'], name: BANSHEE_BOT_NAME, client_id: DISCORD_CLIENT_ID
 
 
       # Here we output the invite URL to the console so the bot account can be invited to the channel. This only has to be
@@ -42,15 +48,15 @@ module Gunsmith
             To show off your weapon/armor, message the bot with your Bungie Name and weapon/armor slot, separated by spaces. The bot will always look at the *most recently played character* on your account.
             The standard usage looks like this:
 
-            ```@#{BOT_USERNAME} <bungie_name> <slot>```
+            ```@#{BANSHEE_BOT_USERNAME} <bungie_name> <slot>```
 
             For example:
 
-            ```@#{BOT_USERNAME} MyBungieName#1234 kinetic```
+            ```@#{BANSHEE_BOT_USERNAME} MyBungieName#1234 kinetic```
 
-            If you've registered with the bot (`@#{BOT_USERNAME} register <bungie_name>`) then you can simply list the slot to display:
+            If you've registered with the bot (`@#{BANSHEE_BOT_USERNAME} register <bungie_name>`) then you can simply list the slot to display:
 
-            ```@#{BOT_USERNAME} kinetic```
+            ```@#{BANSHEE_BOT_USERNAME} kinetic```
 
             In addition to requesting a specific slot, you can say `weapons`, `armor`, or `loadout`, and you'll get a complete summary of every currently equipped weapon, armor piece, or both.
 
@@ -76,7 +82,7 @@ HELP
           requested_bungie_name = args[1]
 
           unless requested_bungie_name
-            message_text += "Usage: `@#{BOT_USERNAME} register <bungie_name>`"
+            message_text += "Usage: `@#{BANSHEE_BOT_USERNAME} register <bungie_name>`"
             event.channel&.send_message message_text
             next
           end
@@ -98,8 +104,8 @@ HELP
 
 
           # Associate the specified Bungie.net membership with the Discord user who made the request
-          user            = Discord::User.find_or_initialize_by(user_id: event.message.author.id)
-          user.username   = event.message.author.username
+          user             = Discord::User.find_or_initialize_by(user_id: event.message.author.id)
+          user.username    = event.message.author.username
           user.bungie_user = bungie_membership.bungie_user
           user.save
 
@@ -308,7 +314,7 @@ HELP
         embed.color       = Bungie::Api.get_hex_color_for_damage_type(results[:item][:damage_type])
         embed.url         = destiny_tracker_url
         embed.thumbnail   = Discordrb::Webhooks::EmbedImage.new(url: icon_url)
-        embed.footer      = Discordrb::Webhooks::EmbedFooter.new(text: attachment_footer, icon_url: BOT_ICON_URL)
+        embed.footer      = Discordrb::Webhooks::EmbedFooter.new(text: attachment_footer, icon_url: BANSHEE_BOT_ICON_URL)
         embed.timestamp   = Time.now
 
         attachment_fields.each do |field|
@@ -461,7 +467,7 @@ HELP
       output += "<@#{event&.user&.id}>: " unless event&.user.blank?
 
       output += "Memory's not what it used to be. Who're you again?\n"
-      output += "Use `@#{BOT_USERNAME} register <bungie_name>` to register your Bungie.net profile.\n"
+      output += "Use `@#{BANSHEE_BOT_USERNAME} register <bungie_name>` to register your Bungie.net profile.\n"
       output += "Use the 'help' command for more info."
 
       output.strip!
@@ -497,12 +503,74 @@ HELP
       output += additional_message.to_s unless additional_message.blank?
       output += "\n"
 
-      output += "Usage: `@#{BOT_USERNAME} <bungie_net> <slot>`\n"
+      output += "Usage: `@#{BANSHEE_BOT_USERNAME} <bungie_net> <slot>`\n"
       output += "Please use the 'help' command for more info."
 
       output.strip!
 
       event&.channel&.send_message output
+    end
+
+
+    def self.notify_twitch_clip(clip:, webhook_url:, bungie_users:)
+      raise ArgumentError unless clip && webhook_url
+
+
+      map      = Bungie::Api.instance.manifest.lookup_activity(clip.activity.reference_id)
+      activity = Bungie::Api.instance.manifest.lookup_activity(clip.activity.director_activity_hash)
+
+
+      streamer_name     = clip.twitch_video&.twitch_user&.display_name || '(unknown)'
+      map_name          = map&.dig('displayProperties', 'name') || '(unknown)'
+      activity_name     = activity&.dig('displayProperties', 'name') || '(unknown)'
+      map_thumbnail_url = map['pgcrImage'] || '/img/theme/destiny/bgs/pgcrs/placeholder.jpg'
+      # map_thumbnail_url = map&.dig('displayProperties', 'icon') || '/img/misc/missing_icon_d2.png'
+      clip_url = clip.url
+      # saint_14_icon_url = "URL FOR SAINT 14 IMAGE (imgur?) 'https://i.imgur.com/PcMltU7.jpg'"
+
+
+      map_thumbnail_url = "https://www.bungie.net/#{map_thumbnail_url}"
+
+
+      client = Discordrb::Webhooks::Client.new(url: webhook_url)
+
+      body_username = CONFIG&.dig('twitch_clips', 'bot_name') || SAINT_BOT_NAME
+      body_text     = 'New Twitch clip found!'
+
+      embed_title     = "#{streamer_name} played #{activity_name} on #{map_name}"
+      embed_timestamp = clip.activity.started_at
+
+
+      embed_text = ''
+
+      if bungie_users
+        embed_text = "Including users:\n"
+        bungie_users.each do |bungie_user|
+          embed_text += "- `#{bungie_user.bungie_name}`\n"
+        end
+      end
+
+      embed_text.strip!
+
+      begin
+        client.execute do |builder|
+          builder.username   = body_username
+          builder.avatar_url = SAINT_BOT_ICON_URL
+          builder.content    = body_text
+
+          builder.add_embed do |embed|
+            embed.timestamp   = embed_timestamp
+            embed.title       = embed_title
+            embed.description = embed_text
+            embed.url         = clip_url
+            embed.image       = Discordrb::Webhooks::EmbedImage.new(url: map_thumbnail_url)
+          end
+        end
+      rescue RestClient::BadRequest
+        # Silently return
+      end
+
+      true
     end
   end
 end

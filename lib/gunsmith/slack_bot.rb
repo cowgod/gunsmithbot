@@ -5,9 +5,13 @@ require 'slack-ruby-bot'
 module Gunsmith
   # Wrapper for GunsmithBot class, to adapt it to usage in Slack
   class SlackBot < SlackRubyBot::Bot
-    BOT_NAME     = 'Banshee-44'
-    BOT_ICON_URL = 'http://binrock.net/banshee44.png'
-    BOT_USERNAME = (ENV['GUNSMITH_BOT_USERNAME'] || 'banshee-44')
+    BANSHEE_BOT_NAME     = 'Banshee-44'
+    BANSHEE_BOT_ICON_URL = 'https://i.imgur.com/bYLc6Hn.png'
+    BANSHEE_BOT_USERNAME = (ENV['GUNSMITH_BOT_USERNAME'] || 'banshee-44')
+
+    SAINT_BOT_NAME     = 'Saint-14'
+    SAINT_BOT_ICON_URL = 'https://i.imgur.com/t0xjaer.png'
+    # SAINT_BOT_USERNAME = (ENV['GUNSMITH_BOT_USERNAME'] || 'banshee-44')
 
     IGNORED_CHANNELS = [
       'C13V2MUBA' # FPVChat #gaming
@@ -19,15 +23,15 @@ module Gunsmith
         To show off your weapon/armor, message the bot with your Bungie Name and weapon/armor slot, separated by spaces. The bot will always look at the *most recently played character* on your account.
         The standard usage looks like this:
 
-        ```@#{BOT_USERNAME} <bungie_name> <slot>```
+        ```@#{BANSHEE_BOT_USERNAME} <bungie_name> <slot>```
 
         For example:
 
-        ```@#{BOT_USERNAME} MyBungieName#1234 kinetic```
+        ```@#{BANSHEE_BOT_USERNAME} MyBungieName#1234 kinetic```
 
-        If you've registered with the bot (`@#{BOT_USERNAME} register <bungie_name>`) then you can simply list the slot to display:
+        If you've registered with the bot (`@#{BANSHEE_BOT_USERNAME} register <bungie_name>`) then you can simply list the slot to display:
 
-        ```@#{BOT_USERNAME} kinetic```
+        ```@#{BANSHEE_BOT_USERNAME} kinetic```
 
         In addition to requesting a specific slot, you can say `weapons`, `armor`, or `loadout`, and you'll get a complete summary of every currently equipped weapon, armor piece, or both.
 
@@ -68,7 +72,7 @@ module Gunsmith
       requested_bungie_name = args[1..].join(' ')
 
       unless requested_bungie_name
-        message_text += "Usage: `@#{BOT_USERNAME} register <bungie_name>`"
+        message_text += "Usage: `@#{BANSHEE_BOT_USERNAME} register <bungie_name>`"
         client.say(text: message_text, channel: data.channel)
         next
       end
@@ -318,7 +322,7 @@ module Gunsmith
                          text:        attachment_text,
                          fallback:    attachment_fallback,
                          fields:      attachment_fields,
-                         footer_icon: BOT_ICON_URL,
+                         footer_icon: BANSHEE_BOT_ICON_URL,
                          # footer:      BOT_NAME,
                          footer: attachment_footer,
                          # ts:          Time.now.to_i,
@@ -441,7 +445,7 @@ module Gunsmith
       output += additional_message.to_s unless additional_message&.blank?
       output += "\n"
 
-      output += "Usage: @#{BOT_USERNAME} <bungie_name> <slot>\n"
+      output += "Usage: @#{BANSHEE_BOT_USERNAME} <bungie_name> <slot>\n"
       output += "Please use the 'help' command for more info."
 
       output.strip!
@@ -457,7 +461,7 @@ module Gunsmith
       output += "<@#{data&.user}>: " unless data&.user&.blank?
 
       output += "Memory's not what it used to be. Who're you again?\n"
-      output += "Use `@#{BOT_USERNAME} register <bungie_name>` to register your Bungie.net profile.\n"
+      output += "Use `@#{BANSHEE_BOT_USERNAME} register <bungie_name>` to register your Bungie.net profile.\n"
       output += "Use the 'help' command for more info."
 
       output.strip!

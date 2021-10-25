@@ -37,16 +37,18 @@ module Twitch
     def get_access_token
       url = 'https://id.twitch.tv/oauth2/token'
 
-      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
+      query_options = {
+        grant_type:    'client_credentials',
+        client_id:     ENV['TWITCH_API_CLIENT_ID'],
+        client_secret: ENV['TWITCH_API_CLIENT_SECRET'],
+      }
+
+      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url} - #{JSON.pretty_generate(query_options)}"
 
       response = self.class.post(
         url,
         @options.merge(
-          query: {
-            grant_type:    'client_credentials',
-            client_id:     ENV['TWITCH_API_CLIENT_ID'],
-            client_secret: ENV['TWITCH_API_CLIENT_SECRET'],
-          }
+          query: query_options
         )
       )
       raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
@@ -73,14 +75,16 @@ module Twitch
 
       url = '/users'
 
-      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
+      query_options = {
+        id: user_id
+      }
+
+      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url} - #{JSON.pretty_generate(query_options)}"
 
       response = self.class.get(
         url,
         @options.merge(
-          query: {
-            id: user_id
-          }
+          query: query_options
         )
       )
       raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
@@ -96,14 +100,16 @@ module Twitch
 
       url = '/users'
 
-      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
+      query_options = {
+        login: display_name
+      }
+
+      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url} - #{JSON.pretty_generate(query_options)}"
 
       response = self.class.get(
         url,
         @options.merge(
-          query: {
-            login: display_name
-          }
+          query: query_options
         )
       )
       raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
@@ -119,14 +125,16 @@ module Twitch
 
       url = '/videos'
 
-      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
+      query_options = {
+        id: video_id
+      }
+
+      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url} - #{JSON.pretty_generate(query_options)}"
 
       response = self.class.get(
         url,
         @options.merge(
-          query: {
-            id: video_id
-          }
+          query: query_options
         )
       )
       raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
@@ -152,14 +160,16 @@ module Twitch
 
       url = '/videos'
 
-      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
+      query_options = {
+        user_id: user_id
+      }
+
+      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url} - #{JSON.pretty_generate(query_options)}"
 
       response = self.class.get(
         url,
         @options.merge(
-          query: {
-            user_id: user_id
-          }
+          query: query_options
         )
       )
       raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE

@@ -4,15 +4,13 @@
 require_relative '../environment'
 
 
-##### STILL TO DO:
-# - Implement command to let users set `find_twitch_streams` field true or false
-# - Implement regular process in bot to check for new, unreported match_clips, and report them in each configured channel (how do we handle this? Each user may want it in one or more locations. Same user might be in several discord servers and several slack servers)
+Cowgod::Logger.log 'Importing new activities...'
 
-Bungie::User.where(find_twitch_streams: true)&.each do |bungie_user|
+Bungie::User.where(find_twitch_clips: true)&.each do |bungie_user|
   bungie_user&.memberships&.each do |membership|
     membership.load_characters&.values&.each do |character|
-      # character.load_unscanned_activities(mode: Bungie::Api::ACTIVITY_MODES[:all_pvp])&.each_value do |activity|
-      character.load_unscanned_activities(mode: Bungie::Api::ACTIVITY_MODES[:trials_of_osiris])&.each_value do |activity|
+      character.load_unscanned_activities(mode: Bungie::Api::ACTIVITY_MODES[:all_pvp])&.each_value do |activity|
+        # character.load_unscanned_activities(mode: Bungie::Api::ACTIVITY_MODES[:trials_of_osiris])&.each_value do |activity|
 
         activity.players&.with_twitch_account&.each do |player|
           twitch_user = player.bungie_user&.load_twitch_user
@@ -41,11 +39,5 @@ Bungie::User.where(find_twitch_streams: true)&.each do |bungie_user|
   end
 end
 
-pp "Done."
-
-
-# For clips pending reporting
-#   Get list of all tracked users contained in clip
-#   Report in each channel (how do we handle the fact that one user might want us to report in more than one place, but not everyone in the clip might be present in each server?)
-
+Cowgod::Logger.log 'Done importing new activities.'
 

@@ -41,8 +41,8 @@ module NumericFormattingUtils
     hours   = self / (60 * 60)
 
     output = "#{seconds}s"
-    output = "#{minutes}m#{output}" if minutes
-    output = "#{hours}h#{output}" if hours
+    output = "#{minutes}m#{output}" if minutes.positive?
+    output = "#{hours}h#{output}" if hours.positive?
 
     output
   end

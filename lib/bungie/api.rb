@@ -20,6 +20,10 @@ module Bungie
 
     base_uri 'https://www.bungie.net/Platform/'
 
+
+    attr_reader :manifest
+
+
     SUCCESS_CODE = 200
 
     COMPONENTS       = {
@@ -425,15 +429,16 @@ module Bungie
       desired_components = [COMPONENTS[:Characters]]
       desired_components << COMPONENTS[:CharacterEquipment] if include_equipment
 
+      query_options = {
+        components: desired_components.join(',')
+      }
 
-      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
+      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url} - #{JSON.pretty_generate(query_options)}"
 
       response = self.class.get(
         url,
         @options.merge(
-          query: {
-            components: desired_components.join(',')
-          }
+          query: query_options
         )
       )
       raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
@@ -511,24 +516,26 @@ module Bungie
     def item_details(membership_type, membership_id, item_instance_id)
       url = "/Destiny2/#{membership_type.to_s.uri_encode}/Profile/#{membership_id.to_s.uri_encode}/Item/#{item_instance_id.to_s.uri_encode}/"
 
-      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
+      query_options = {
+        components: [
+                      COMPONENTS[:ItemInstances],
+                      COMPONENTS[:ItemPerks],
+                      COMPONENTS[:ItemStats],
+
+                      COMPONENTS[:ItemSockets],
+                      COMPONENTS[:ItemCommonData],
+                      COMPONENTS[:ItemPlugStates],
+                      COMPONENTS[:ItemPlugObjectives],
+                      COMPONENTS[:ItemReusablePlugs]
+                    ].join(',')
+      }
+
+      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url} - #{JSON.pretty_generate(query_options)}"
 
       response = self.class.get(
         url,
         @options.merge(
-          query: {
-            components: [
-                          COMPONENTS[:ItemInstances],
-                          COMPONENTS[:ItemPerks],
-                          COMPONENTS[:ItemStats],
-
-                          COMPONENTS[:ItemSockets],
-                          COMPONENTS[:ItemCommonData],
-                          COMPONENTS[:ItemPlugStates],
-                          COMPONENTS[:ItemPlugObjectives],
-                          COMPONENTS[:ItemReusablePlugs]
-                        ].join(',')
-          }
+          query: query_options
         )
       )
       raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
@@ -561,8 +568,8 @@ module Bungie
         item_details[:icon]     = override_item&.dig('displayProperties', 'icon') || item_definition.dig('displayProperties', 'icon')
         item_details[:has_icon] = override_item&.dig('displayProperties', 'hasIcon') || item_definition.dig('displayProperties', 'hasIcon')
       else
-        item_details[:icon]     = item_definition&.dig('displayProperties', 'icon')
-        item_details[:has_icon] = item_definition&.dig('displayProperties', 'hasIcon')
+        item_details[:icon]     = item_definition.dig('displayProperties', 'icon')
+        item_details[:has_icon] = item_definition.dig('displayProperties', 'hasIcon')
       end
 
 
@@ -580,18 +587,18 @@ module Bungie
       end
 
 
-      item_definition&.dig('sockets', 'socketCategories')&.each do |category|
+      item_definition.dig('sockets', 'socketCategories')&.each do |category|
         category&.dig('socketIndexes')&.each do |socket_index|
           ### Manifest data:
           # socket_definition = item_definition.dig('sockets', 'socketEntries')[socket_index]
 
           ### Item instance data:
-          socket_instance = item_instance&.dig('sockets', 'data', 'sockets')&.dig(socket_index)
+          socket_instance = item_instance.dig('sockets', 'data', 'sockets')&.dig(socket_index)
           next unless socket_instance
 
 
           ### Load any objectives (e.g. masterwork kill trackers) for the plug inserted in this socket
-          item_instance.dig('plugObjectives', 'data', 'objectivesPerPlug', socket_instance&.dig('plugHash').to_s)
+          item_instance.dig('plugObjectives', 'data', 'objectivesPerPlug', socket_instance.dig('plugHash').to_s)
             &.select { |objective| objective&.dig('visible') }
             &.each do |objective|
             objective_definition = @manifest.lookup_objective(objective&.dig('objectiveHash'))
@@ -609,14 +616,13 @@ module Bungie
           case SOCKET_CATEGORY_IDS.key(category['socketCategoryHash'])
           when :weapon_perks, :armor_perks
             # If this socket isn't marked as visible, we can skip it
-            next unless socket_instance&.dig('isVisible')
+            next unless socket_instance.dig('isVisible')
 
             perk_socket = []
 
             if item_instance.dig('reusablePlugs', 'data', 'plugs', socket_index.to_s)
               # If the socket supports multiple reusablePlugs, display them all, and mark which is currently selected
-              item_instance.dig('reusablePlugs', 'data', 'plugs', socket_index.to_s)
-                &.each do |plug|
+              item_instance.dig('reusablePlugs', 'data', 'plugs', socket_index.to_s).each do |plug|
 
                 plug_definition = @manifest.lookup_item(plug&.dig('plugItemHash'))
                 next unless plug_definition
@@ -627,14 +633,14 @@ module Bungie
                   description: plug_definition.dig('displayProperties', 'description'),
                   icon:        plug_definition.dig('displayProperties', 'icon'),
                   has_icon:    plug_definition.dig('displayProperties', 'hasIcon'),
-                  selected:    (plug_definition['hash'].to_s == socket_instance&.dig('plugHash').to_s)
+                  selected:    (plug_definition['hash'].to_s == socket_instance.dig('plugHash').to_s)
                 }
 
                 perk_socket.push perk
               end
             else
               # Otherwise, just display the fixed plug that's in the socket
-              plug_definition = @manifest.lookup_item(socket_instance&.dig('plugHash'))
+              plug_definition = @manifest.lookup_item(socket_instance.dig('plugHash'))
               if plug_definition
                 perk = {
                   hash:        plug_definition['hash'].to_s,
@@ -770,7 +776,7 @@ module Bungie
       query_options[:count] = num_activities if num_activities
       query_options[:mode]  = mode if mode
 
-      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
+      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url} - #{JSON.pretty_generate(query_options)}"
 
       response = self.class.get(
         url,
