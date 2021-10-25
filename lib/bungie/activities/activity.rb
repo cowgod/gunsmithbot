@@ -126,6 +126,9 @@ module Bungie
 
           player          = Bungie::Activities::Player.find_or_initialize_by(activity: activity, character: character)
           player.team     = teams[player_hash.dig('values', 'team', 'basic', 'value').to_i]
+          player.kills    = player_hash.dig('values', 'kills', 'basic', 'value')
+          player.assists  = player_hash.dig('values', 'assists', 'basic', 'value')
+          player.deaths   = player_hash.dig('values', 'deaths', 'basic', 'value')
           player.standing = player_hash['standing']
           player.score    = player_hash.dig('score', 'basic', 'value')
           player.save

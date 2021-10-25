@@ -28,6 +28,10 @@ module Bungie
         character&.membership&.bungie_user
       end
 
+
+      def kd(decimal_places: 2)
+        (kills.to_f / [deaths, 1].max).round(decimal_places)
+      end
     end
   end
 end

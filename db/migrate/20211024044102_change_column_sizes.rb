@@ -9,6 +9,7 @@ class ChangeColumnSizes < ActiveRecord::Migration[6.1]
 
 
   def down
+    # Reverting will fail if there's data in the DB, due to data exceeding the column size
     # change_column :twitch_users, :description, :string
 
     rename_column :bungie_users, :find_twitch_clips, :find_twitch_streams

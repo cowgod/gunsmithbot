@@ -8,7 +8,7 @@ module Bungie
       belongs_to :twitch_video, class_name: 'Twitch::Video'
 
 
-      scope :pending_notification, -> { where(notified_at: nil) }
+      scope :pending_notification, -> { joins(:activity).where(notified_at: nil).order('bungie_activities.started_at ASC') }
 
 
       def offset

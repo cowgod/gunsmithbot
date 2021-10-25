@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2021_10_24_044102) do
+ActiveRecord::Schema.define(version: 2021_10_25_150622) do
 
   create_table "bungie_activities", charset: "utf8", force: :cascade do |t|
     t.datetime "started_at", null: false
@@ -40,6 +40,9 @@ ActiveRecord::Schema.define(version: 2021_10_24_044102) do
     t.bigint "bungie_activity_id", null: false
     t.bigint "bungie_activity_team_id"
     t.bigint "bungie_character_id"
+    t.integer "kills", null: false
+    t.integer "assists", null: false
+    t.integer "deaths", null: false
     t.integer "standing"
     t.decimal "score", precision: 10
     t.datetime "created_at", precision: 6, null: false
@@ -159,7 +162,7 @@ ActiveRecord::Schema.define(version: 2021_10_24_044102) do
     t.bigint "video_id"
     t.bigint "stream_id"
     t.string "title"
-    t.string "description"
+    t.text "description"
     t.datetime "started_at"
     t.datetime "published_at"
     t.string "url"

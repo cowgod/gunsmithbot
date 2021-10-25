@@ -396,9 +396,7 @@ HELP
           field_text += "\n- Masterwork: #{item[:masterwork][:affected_stat]} - #{item[:masterwork][:value]}"
         end
 
-        if item[:mod]
-          field_text += "\n- Mod: #{item[:mod][:name]}"
-        end
+        field_text += "\n- Mod: #{item[:mod][:name]}" if item[:mod]
 
         next if field_text.blank? || field_text == '- Perks: '
 
@@ -512,9 +510,10 @@ HELP
     end
 
 
-    def self.notify_twitch_clip(clip:, webhook_url:, bungie_users:)
+    def self.notify_twitch_clip(clip:, webhook_url:)
       raise ArgumentError unless clip && webhook_url
 
+      bungie_users = clip.activity&.players&.map(&:bungie_user)&.select(&:find_twitch_clips)
 
       map      = Bungie::Api.instance.manifest.lookup_activity(clip.activity.reference_id)
       activity = Bungie::Api.instance.manifest.lookup_activity(clip.activity.director_activity_hash)
@@ -541,16 +540,29 @@ HELP
       embed_timestamp = clip.activity.started_at
 
 
-      embed_text = ''
+      embed_fields = []
 
-      if bungie_users
-        embed_text = "Including users:\n"
-        bungie_users.each do |bungie_user|
-          embed_text += "- `#{bungie_user.bungie_name}`\n"
-        end
+      bungie_users.each do |bungie_user|
+        # Find the player that corresponds to this bungie_user
+        player = clip.activity&.players&.select { |player| player.bungie_user == bungie_user }&.first
+        next unless player
+
+        field_text =
+          [
+            "Kills: #{player.kills}",
+            "Deaths: #{player.deaths}",
+            "K/D: #{player.kd}",
+          ].join(' | ')
+
+        embed_fields.push({
+                            name:   bungie_user.bungie_name,
+                            value:  field_text,
+                            inline: false
+                          })
       end
 
-      embed_text.strip!
+
+      Cowgod::Logger.log "#{self.class}.#{__method__} - Notifying clip: #{embed_title} (#{embed_timestamp.getlocal.strftime('%Y-%m-%d %I:%M %P')})"
 
       begin
         client.execute do |builder|
@@ -559,15 +571,15 @@ HELP
           builder.content    = body_text
 
           builder.add_embed do |embed|
-            embed.timestamp   = embed_timestamp
-            embed.title       = embed_title
-            embed.description = embed_text
-            embed.url         = clip_url
-            embed.image       = Discordrb::Webhooks::EmbedImage.new(url: map_thumbnail_url)
+            embed.timestamp = embed_timestamp
+            embed.title     = embed_title
+            embed.url       = clip_url
+            embed.thumbnail = Discordrb::Webhooks::EmbedImage.new(url: map_thumbnail_url)
+            embed.fields    = embed_fields if embed_fields.size.positive?
           end
         end
-      rescue RestClient::BadRequest
-        # Silently return
+      rescue RestClient::BadRequest => e
+        Cowgod::Logger.log "#{self.class}.#{__method__} - ERROR: #{e}"
       end
 
       true

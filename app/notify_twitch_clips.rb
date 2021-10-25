@@ -15,6 +15,8 @@ Bungie::Activities::Clip.pending_notification.each do |clip|
   # Build up a map of which included users we're going to report in each destination
   notification_destinations = {}
 
+  ### TODO -- rework this to just configure webhooks per server instead of per user
+  #
   clip&.activity&.players&.map(&:bungie_user)&.select(&:find_twitch_clips)&.each do |bungie_user|
     # Be sure we actually have config information about where to report their matches
     next unless CONFIG&.dig('twitch_clips', 'users', bungie_user.unique_name)
@@ -24,37 +26,28 @@ Bungie::Activities::Clip.pending_notification.each do |clip|
       next unless CONFIG&.dig('twitch_clips', 'users', bungie_user.unique_name, platform.to_s)
 
       CONFIG&.dig('twitch_clips', 'users', bungie_user.unique_name, platform.to_s)&.each do |webhook_url|
-        notification_destinations[platform]                              ||= {}
-        notification_destinations[platform][webhook_url]                 ||= {}
-        notification_destinations[platform][webhook_url][bungie_user.id] = true
+        notification_destinations[platform]              ||= {}
+        notification_destinations[platform][webhook_url] = true
       end
     end
   end
 
 
   # Send a message to each destination we found
-  if notification_destinations[:discord]
-    notification_destinations[:discord].each do |webhook_url, bungie_users|
-      Gunsmith::DiscordBot.notify_twitch_clip(
-        clip:         clip,
-        webhook_url:  webhook_url,
-        bungie_users: bungie_users.keys.map { |id| Bungie::User.find_by(id: id) }
-      )
-    end
-  end
-
-  exit
-
-  if notification_destinations[:slack]
-    notification_destinations[:slack].each do |webhook_url, bungie_users|
-      pp webhook_url
-      pp bungie_users.keys
-      # Slack::Bot.notify_twitch_clip(clip: clip,)
-    end
+  notification_destinations[:discord]&.each do |webhook_url|
+    Gunsmith::DiscordBot.notify_twitch_clip(
+      clip:        clip,
+      webhook_url: webhook_url,
+    )
   end
 
 
-  exit ######DEBUG
+  notification_destinations[:slack]&.each do |webhook_url|
+    # Gunsmith::SlackBot.notify_twitch_clip(
+    #   clip:        clip,
+    #   webhook_url: webhook_url,
+    # )
+  end
 
 
   # Mark clip as reported
