@@ -64,6 +64,12 @@ module Gunsmith
 
             The full list of supported slots is:```#{Bungie::Api::ITEM_BUCKET_IDS.values.map { |bucket_id| Bungie::Api.get_bucket_code(bucket_id) }.reject(&:blank?).join(', ')}, weapons, armor, loadout```
 
+            To enable or disable reporting of your Twitch clips (if configured on this server), use the following command:
+
+            ```@#{BANSHEE_BOT_USERNAME} twitch <off|on>```
+
+            The Twitch Clip setting is per-server, and it applies to the server in which you message the bot with the command. 
+
             GitHub Repository: #{Gunsmith::Bot::BOT_GITHUB_URL}
 
             _Keep that thing oiled, guardian._
@@ -125,6 +131,40 @@ HELP
           message_text.strip!
 
           event.channel&.send_message message_text
+
+
+        when 'twitch', 'twitchclips', 'twitch_clips', 'clips'
+
+          # Let's save info about the user, server, and membership, even if we don't know their Bungie account
+          discord_user          = Discord::User.find_or_initialize_by(user_id: event&.message&.author&.id)
+          discord_user.username = event&.message&.author&.username
+          discord_user.save
+
+          discord_server      = Discord::Server.find_or_initialize_by(server_id: event&.message&.server&.id)
+          discord_server.name = event&.message&.server&.name
+          discord_server.save
+
+          discord_membership                     = Discord::Membership.find_or_initialize_by(user: discord_user, server: discord_server)
+          discord_membership.notify_twitch_clips = false
+          discord_membership.save
+
+
+          unless discord_user.bungie_user
+            print_unregistered_user_message(event: event)
+            next
+          end
+
+
+          # Set the 'notify_twitch_clips' setting for the user who called us
+          discord_membership.notify_twitch_clips = !(args[1]&.match?(/no|false|off|0|cancel/i))
+          discord_membership.save
+
+
+          # Reply to the user that messaged us
+          message_text = "#{event.user&.mention}: " unless event.user.blank?
+          message_text += "Successfully set your Twitch Clips preference for the '#{discord_server.name}' server to: `#{discord_membership.notify_twitch_clips ? 'ON' : 'OFF'}`."
+
+          event.channel&.send_message message_text.strip
 
 
         else
