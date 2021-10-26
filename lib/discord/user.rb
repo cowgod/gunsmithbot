@@ -11,6 +11,13 @@ module Discord
     scope :notification_servers, -> { joins(:memberships, :servers).where('membership.notify_twitch_clips = 1') }
 
 
+    # Utility function to mention users in messages
+    # @return [String] the mention code in the form of <@id>
+    def mention
+      "<@#{user_id}>"
+    end
+
+
     def notification_servers
       memberships.notify_twitch_clips.map(&:server)
     end

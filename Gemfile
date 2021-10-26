@@ -20,3 +20,5 @@ gem 'rubyzip', '~> 2.3.0'
 gem 'slack-ruby-bot'
 gem 'sqlite3'
 gem 'yaml'
+gem 'optparse'
+

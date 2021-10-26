@@ -41,7 +41,6 @@ module Bungie
 
           player&.bungie_user&.discord_users&.each do |discord_user|
             discord_user.notification_servers.each do |server|
-              ##### TODO -- keep working here (we got 2 servers, but this didn't get populated. Check why)
               next unless CONFIG&.dig('twitch_clips', 'webhooks', 'discord', server.server_id)
 
               CONFIG&.dig('twitch_clips', 'webhooks', 'discord', server.server_id)&.each do |webhook_url|
@@ -73,9 +72,9 @@ module Bungie
         # end
 
 
-        # # Mark clip as reported
-        # self.notified_at = Time.now
-        # save
+        # Mark clip as reported
+        self.notified_at = Time.now
+        save
       end
 
     end

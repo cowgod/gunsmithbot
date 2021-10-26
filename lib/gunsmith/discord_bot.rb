@@ -532,15 +532,19 @@ HELP
 
 
       body_username = CONFIG&.dig('twitch_clips', 'bot_name') || SAINT_BOT_NAME
-      body_text     = 'New Twitch clip found!'
 
       embed_title     = "#{streamer_name} played #{activity_name} on #{map_name}"
       embed_timestamp = clip.activity.started_at
 
 
-      embed_fields = []
+      discord_users_to_mention = []
+      embed_fields             = []
 
-      clip.activity&.players&.map(&:bungie_user)&.select(&:find_twitch_clips)&.each do |bungie_user|
+
+      clip.tracked_players&.map(&:bungie_user)&.each do |bungie_user|
+        discord_users_to_mention += bungie_user.discord_users.to_a
+
+
         # Find the player that corresponds to this bungie_user
         player = clip.activity&.players&.select { |player| player.bungie_user == bungie_user }&.first
         next unless player
@@ -558,6 +562,10 @@ HELP
                             inline: false
                           })
       end
+
+      body_text = 'New Twitch clip found'
+      body_text += " featuring #{discord_users_to_mention.map(&:mention).to_sentence}" if discord_users_to_mention
+      body_text += ':'
 
 
       Cowgod::Logger.log "#{self.class}.#{__method__} - Notifying clip: #{embed_title} (#{embed_timestamp.getlocal.strftime('%Y-%m-%d %I:%M %P')})"
