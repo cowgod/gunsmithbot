@@ -23,9 +23,22 @@ module Bungie
           )
       }
 
+      scope :find_twitch_clips, lambda {
+        joins(character: { membership: :bungie_user })
+          .where(
+            characters: {
+              memberships: {
+                bungie_users: {
+                  find_twitch_clips: true
+                }
+              }
+            }
+          )
+      }
+
 
       def bungie_user
-        character&.membership&.bungie_user
+        character&.bungie_user
       end
 
 

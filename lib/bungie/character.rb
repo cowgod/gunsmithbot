@@ -20,6 +20,10 @@ module Bungie
     end
 
 
+    def bungie_user
+      membership&.bungie_user
+    end
+
 
     def self.load_characters_for_membership(membership, include_equipment: false)
       raise ArgumentError unless membership

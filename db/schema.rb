@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2021_10_25_150622) do
+ActiveRecord::Schema.define(version: 2021_10_26_140300) do
 
   create_table "bungie_activities", charset: "utf8", force: :cascade do |t|
     t.datetime "started_at", null: false
@@ -24,6 +24,7 @@ ActiveRecord::Schema.define(version: 2021_10_25_150622) do
     t.datetime "scanned_at"
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
+    t.index ["instance_id"], name: "index_bungie_activities_on_instance_id", unique: true
   end
 
   create_table "bungie_activity_clips", charset: "utf8", force: :cascade do |t|
@@ -32,6 +33,7 @@ ActiveRecord::Schema.define(version: 2021_10_25_150622) do
     t.datetime "notified_at"
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
+    t.index ["bungie_activity_id", "twitch_video_id"], name: "idx__bng_act_clips__activity_id__twitch_video_id", unique: true
     t.index ["bungie_activity_id"], name: "index_bungie_activity_clips_on_bungie_activity_id"
     t.index ["twitch_video_id"], name: "index_bungie_activity_clips_on_twitch_video_id"
   end
@@ -47,6 +49,7 @@ ActiveRecord::Schema.define(version: 2021_10_25_150622) do
     t.decimal "score", precision: 10
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
+    t.index ["bungie_activity_id", "bungie_character_id"], name: "idx__bng_act_players__activity_id__character_id", unique: true
     t.index ["bungie_activity_id"], name: "index_bungie_activity_players_on_bungie_activity_id"
     t.index ["bungie_activity_team_id"], name: "index_bungie_activity_players_on_bungie_activity_team_id"
     t.index ["bungie_character_id"], name: "index_bungie_activity_players_on_bungie_character_id"
@@ -60,6 +63,7 @@ ActiveRecord::Schema.define(version: 2021_10_25_150622) do
     t.decimal "score", precision: 10
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
+    t.index ["bungie_activity_id", "team_id"], name: "idx__bng_act_teams__activity_id__team_id", unique: true
     t.index ["bungie_activity_id"], name: "index_bungie_activity_teams_on_bungie_activity_id"
   end
 
@@ -113,6 +117,24 @@ ActiveRecord::Schema.define(version: 2021_10_25_150622) do
     t.index ["twitch_user_id"], name: "index_bungie_users_on_twitch_user_id"
   end
 
+  create_table "discord_memberships", charset: "utf8", force: :cascade do |t|
+    t.bigint "discord_user_id", null: false
+    t.bigint "discord_server_id", null: false
+    t.boolean "notify_twitch_clips", null: false
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index ["discord_server_id"], name: "index_discord_memberships_on_discord_server_id"
+    t.index ["discord_user_id", "discord_server_id"], name: "idx__disc_memberships__user_id__server_id", unique: true
+    t.index ["discord_user_id"], name: "index_discord_memberships_on_discord_user_id"
+  end
+
+  create_table "discord_servers", charset: "utf8", force: :cascade do |t|
+    t.bigint "server_id", null: false
+    t.string "name", null: false
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+  end
+
   create_table "discord_users", charset: "utf8", force: :cascade do |t|
     t.string "user_id"
     t.bigint "bungie_user_id"
@@ -155,6 +177,7 @@ ActiveRecord::Schema.define(version: 2021_10_25_150622) do
     t.datetime "channel_created_at"
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
+    t.index ["user_id"], name: "index_twitch_users_on_user_id", unique: true
   end
 
   create_table "twitch_videos", charset: "utf8", force: :cascade do |t|
@@ -173,6 +196,7 @@ ActiveRecord::Schema.define(version: 2021_10_25_150622) do
     t.string "video_type"
     t.integer "duration"
     t.index ["twitch_user_id"], name: "index_twitch_videos_on_twitch_user_id"
+    t.index ["video_id"], name: "index_twitch_videos_on_video_id", unique: true
   end
 
   add_foreign_key "bungie_activity_clips", "bungie_activities", on_delete: :cascade
@@ -184,6 +208,8 @@ ActiveRecord::Schema.define(version: 2021_10_25_150622) do
   add_foreign_key "bungie_characters", "bungie_memberships"
   add_foreign_key "bungie_memberships", "bungie_users"
   add_foreign_key "bungie_users", "twitch_users"
+  add_foreign_key "discord_memberships", "discord_servers"
+  add_foreign_key "discord_memberships", "discord_users"
   add_foreign_key "discord_users", "bungie_users", name: "fk_discord_bungie_user"
   add_foreign_key "slack_users", "bungie_users", name: "fk_slack_bungie_user"
   add_foreign_key "slack_users", "slack_teams", column: "team_id"

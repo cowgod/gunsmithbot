@@ -51,6 +51,10 @@ module Bungie
       end
 
 
+      def tracked_players
+        players&.find_twitch_clips
+      end
+
 
       def self.load_unscanned_activities_for_character(character, mode: nil)
         raise ArgumentError unless character

@@ -18,6 +18,8 @@ module Gunsmith
     SAINT_BOT_ICON_URL = 'https://i.imgur.com/t0xjaer.png'
     # SAINT_BOT_USERNAME = (ENV['GUNSMITH_BOT_USERNAME'] || 'banshee-44')
 
+    attr_reader :bot
+
 
     def initialize
       raise 'DISCORD_API_KEY not set' unless ENV['DISCORD_API_TOKEN'].present?
@@ -77,7 +79,7 @@ HELP
 
           # Start out our response by tagging the user that messaged us
           message_text = ''
-          message_text += "<@#{event.user&.id}>: " unless event.user.blank?
+          message_text += "#{event.user&.mention}: " unless event.user.blank?
 
           requested_bungie_name = args[1]
 
@@ -104,10 +106,18 @@ HELP
 
 
           # Associate the specified Bungie.net membership with the Discord user who made the request
-          user             = Discord::User.find_or_initialize_by(user_id: event.message.author.id)
-          user.username    = event.message.author.username
-          user.bungie_user = bungie_membership.bungie_user
-          user.save
+          discord_user             = Discord::User.find_or_initialize_by(user_id: event&.message&.author&.id)
+          discord_user.username    = event&.message&.author&.username
+          discord_user.bungie_user = bungie_membership.bungie_user
+          discord_user.save
+
+          discord_server      = Discord::Server.find_or_initialize_by(server_id: event&.message&.server&.id)
+          discord_server.name = event&.message&.server&.name
+          discord_server.save
+
+          discord_membership                     = Discord::Membership.find_or_initialize_by(user: discord_user, server: discord_server)
+          discord_membership.notify_twitch_clips = true
+          discord_membership.save
 
 
           message_text += "Successfully registered you with Bungie Name `#{bungie_membership.bungie_name}`."
@@ -129,8 +139,8 @@ HELP
               requested_slot        = args[0]
 
               # If they just provided a slot, see if they're registered with us
-              user              = Discord::User.find_by(user_id: event.message.author.id)
-              bungie_membership = user&.bungie_user&.memberships&.first
+              discord_user      = Discord::User.find_by(user_id: event.message.author.id)
+              bungie_membership = discord_user&.bungie_user&.memberships&.first
             when 2..Float::INFINITY
               # Grab everything but the last argument as the Bungie Name
               requested_bungie_name = args[0..-2].join(' ')
@@ -208,7 +218,7 @@ HELP
       icon_url            = results[:item][:has_icon] ? "https://www.bungie.net#{results[:item][:icon]}" : nil
 
 
-      message_text = "<@#{event&.user&.id}>: "
+      message_text = "#{event&.user&.mention}: "
       message_text += "`#{results[:bungie_membership].bungie_name} #{results[:slot]}`\n"
 
       # if results[:gamertag_suggestions].present?
@@ -342,7 +352,7 @@ HELP
         'loadout'
       end
 
-      message_text = "<@#{event&.user&.id}>: "
+      message_text = "#{event&.user&.mention}: "
       message_text += "`#{results[:bungie_membership].bungie_name} #{canonical_loadout_type}`\n"
 
 
@@ -462,7 +472,7 @@ HELP
 
       output = ''
 
-      output += "<@#{event&.user&.id}>: " unless event&.user.blank?
+      output += "#{event&.user&.mention}: " unless event&.user.blank?
 
       output += "Memory's not what it used to be. Who're you again?\n"
       output += "Use `@#{BANSHEE_BOT_USERNAME} register <bungie_name>` to register your Bungie.net profile.\n"
@@ -480,7 +490,7 @@ HELP
 
       output = ''
 
-      output += "<@#{event&.user&.id}>: " unless event&.user.blank?
+      output += "#{event&.user&.mention}: " unless event&.user.blank?
 
       output += "Couldn't find a user for Bungie Name '#{requested_bungie_name}'."
       output += "Use the 'help' command for more info."
@@ -497,7 +507,7 @@ HELP
 
       output = ''
 
-      output += "<@#{event&.user&.id}>: " unless event&.user.blank?
+      output += "#{event&.user&.mention}: " unless event&.user.blank?
       output += additional_message.to_s unless additional_message.blank?
       output += "\n"
 
@@ -530,7 +540,7 @@ HELP
 
       embed_fields = []
 
-      clip.activity&.players&.map(&:bungie_user)&.select(&:find_twitch_clips).each do |bungie_user|
+      clip.activity&.players&.map(&:bungie_user)&.select(&:find_twitch_clips)&.each do |bungie_user|
         # Find the player that corresponds to this bungie_user
         player = clip.activity&.players&.select { |player| player.bungie_user == bungie_user }&.first
         next unless player

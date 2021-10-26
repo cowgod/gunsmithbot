@@ -4,8 +4,8 @@ module Bungie
   # Represent a Bungie.net membership
   class User < ActiveRecord::Base
     has_many :memberships, class_name: 'Bungie::Membership', foreign_key: 'bungie_user_id'
-    has_many :slack_users, class_name: 'Slack::User'
-    has_many :discord_users, class_name: 'Discord::User'
+    has_many :slack_users, class_name: 'Slack::User', foreign_key: 'bungie_user_id'
+    has_many :discord_users, class_name: 'Discord::User', foreign_key: 'bungie_user_id'
     belongs_to :twitch_user, class_name: 'Twitch::User'
 
 
