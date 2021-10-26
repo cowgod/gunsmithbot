@@ -26,6 +26,11 @@ module Bungie
     end
 
 
+    def lookup_activity(hash)
+      lookup_item_in_table('DestinyActivityDefinition', hash)
+    end
+
+
     def lookup_stat(hash)
       lookup_item_in_table('DestinyStatDefinition', hash)
     end

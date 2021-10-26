@@ -85,6 +85,7 @@ GEM
     mysql2 (0.5.3)
     netrc (0.11.0)
     nio4r (2.5.8)
+    optparse (0.1.0)
     opus-ruby (1.0.1)
       ffi
     otr-activerecord (2.0.2)
@@ -123,6 +124,7 @@ GEM
     websocket-driver (0.7.5)
       websocket-extensions (>= 0.1.0)
     websocket-extensions (0.1.5)
+    yaml (0.1.1)
     zeitwerk (2.4.2)
 
 PLATFORMS
@@ -135,12 +137,14 @@ DEPENDENCIES
   discordrb
   httparty
   mysql2
+  optparse
   otr-activerecord (~> 2.0)
   psych (~> 3.1)
   rake
   rubyzip (~> 2.3.0)
   slack-ruby-bot
   sqlite3
+  yaml
 
 BUNDLED WITH
    2.2.29

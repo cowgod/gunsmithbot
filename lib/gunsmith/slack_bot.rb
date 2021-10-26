@@ -1,12 +1,17 @@
+# frozen_string_literal: true
 require 'slack-ruby-bot'
 
 
 module Gunsmith
   # Wrapper for GunsmithBot class, to adapt it to usage in Slack
   class SlackBot < SlackRubyBot::Bot
-    BOT_NAME     = 'Banshee-44'.freeze
-    BOT_ICON_URL = 'http://binrock.net/banshee44.png'.freeze
-    BOT_USERNAME = (ENV['GUNSMITH_BOT_USERNAME'] || 'banshee-44')
+    BANSHEE_BOT_NAME     = 'Banshee-44'
+    BANSHEE_BOT_ICON_URL = 'https://i.imgur.com/bYLc6Hn.png'
+    BANSHEE_BOT_USERNAME = (ENV['GUNSMITH_BOT_USERNAME'] || 'banshee-44')
+
+    SAINT_BOT_NAME     = 'Saint-14'
+    SAINT_BOT_ICON_URL = 'https://i.imgur.com/t0xjaer.png'
+    # SAINT_BOT_USERNAME = (ENV['GUNSMITH_BOT_USERNAME'] || 'banshee-44')
 
     IGNORED_CHANNELS = [
       'C13V2MUBA' # FPVChat #gaming
@@ -18,15 +23,15 @@ module Gunsmith
         To show off your weapon/armor, message the bot with your Bungie Name and weapon/armor slot, separated by spaces. The bot will always look at the *most recently played character* on your account.
         The standard usage looks like this:
 
-        ```@#{BOT_USERNAME} <bungie_name> <slot>```
+        ```@#{BANSHEE_BOT_USERNAME} <bungie_name> <slot>```
 
         For example:
 
-        ```@#{BOT_USERNAME} MyBungieName#1234 kinetic```
+        ```@#{BANSHEE_BOT_USERNAME} MyBungieName#1234 kinetic```
 
-        If you've registered with the bot (`@#{BOT_USERNAME} register <bungie_name>`) then you can simply list the slot to display:
+        If you've registered with the bot (`@#{BANSHEE_BOT_USERNAME} register <bungie_name>`) then you can simply list the slot to display:
 
-        ```@#{BOT_USERNAME} kinetic```
+        ```@#{BANSHEE_BOT_USERNAME} kinetic```
 
         In addition to requesting a specific slot, you can say `weapons`, `armor`, or `loadout`, and you'll get a complete summary of every currently equipped weapon, armor piece, or both.
 
@@ -67,30 +72,36 @@ module Gunsmith
       requested_bungie_name = args[1..].join(' ')
 
       unless requested_bungie_name
-        message_text += "Usage: `@#{BOT_USERNAME} register <bungie_name>`"
+        message_text += "Usage: `@#{BANSHEE_BOT_USERNAME} register <bungie_name>`"
         client.say(text: message_text, channel: data.channel)
-        break
+        next
       end
 
 
       bungie_membership = if requested_bungie_name.positive_integer?
-        Bungie::BungieMembership.search_membership_by_id(requested_bungie_name)
+        Bungie::Membership.load_by_id(requested_bungie_name)
       else
-        Bungie::BungieMembership.search_membership_by_bungie_name(requested_bungie_name)
+        Bungie::Membership.load_by_bungie_name(requested_bungie_name)
       end
 
       # If we didn't find a membership, print an error
       unless bungie_membership
         print_user_not_found_message(client, data, requested_bungie_name)
-        break
+        next
+      end
+
+      ## Fixup the DB record. If it's missing the Bungie User, fetch it and save it
+      unless bungie_membership.bungie_user
+        bungie_membership.bungie_user = Bungie::User.load_by_destiny_membership_id(bungie_membership.membership_id)
+        bungie_membership.save
       end
 
 
       team = load_and_update_team(client.team.id, client.team.name, client.team.domain)
 
       # Associate the specified Bungie.net user with the Slack user who made the request
-      user                   = Slack::SlackUser.find_or_create_by(slack_team: team, user_id: data.user)
-      user.bungie_membership = bungie_membership
+      user             = Slack::User.find_or_initialize_by(team: team, user_id: data.user)
+      user.bungie_user = bungie_membership.bungie_user
       user.save
 
 
@@ -122,9 +133,9 @@ module Gunsmith
           requested_slot        = args[0]
 
           # If they just provided a slot, see if they're registered with us
-          team              = Slack::SlackTeam.find_by(team_id: client.team.id)
-          user              = Slack::SlackUser.find_by(slack_team: team, user_id: data.user)
-          bungie_membership = user&.bungie_membership
+          team              = Slack::Team.find_by(team_id: client.team.id)
+          user              = Slack::User.find_by(team: team, user_id: data.user)
+          bungie_membership = user&.bungie_user&.memberships&.first
         when 2..Float::INFINITY
           # Grab everything but the last argument as the Bungie Name
           requested_bungie_name = args[0..-2].join(' ')
@@ -136,52 +147,52 @@ module Gunsmith
 
         # If they aren't registered with us, see if we can find the user in the API
         if !bungie_membership && requested_bungie_name
-          if requested_bungie_name.positive_integer?
+          bungie_membership = if requested_bungie_name.positive_integer?
             # If they provided a numeric bungie.net membership ID, look them up by that
-            bungie_membership = Bungie::BungieMembership.search_membership_by_id(requested_bungie_name)
+            Bungie::Membership.load_by_id(requested_bungie_name)
           else
             # Otherwise, try to search for them by display name. This will only work if it's unique
-            bungie_membership = Bungie::BungieMembership.search_membership_by_bungie_name(requested_bungie_name)
+            Bungie::Membership.load_by_bungie_name(requested_bungie_name)
           end
         end
 
         # If we still didn't find it, print an error
         unless bungie_membership
           print_unregistered_user_message(client, data)
-          break
+          next
         end
 
         unless requested_slot
           print_usage(client, data)
-          break
+          next
         end
 
 
         ## Fixup the DB record. If it's missing the Bungie User, fetch it and save it
         unless bungie_membership.bungie_user
-          bungie_membership.bungie_user = Bungie::BungieUser.search_user_by_platform_membership_id(bungie_membership.membership_id)
+          bungie_membership.bungie_user = Bungie::User.load_by_destiny_membership_id(bungie_membership.membership_id)
           bungie_membership.save
         end
 
 
         case requested_slot.strip.downcase
         when 'loadout', 'weapons', 'weapon', 'guns', 'gun', 'armor'
-          case requested_slot.strip.downcase
+          loadout_type = case requested_slot.strip.downcase
           when 'weapons', 'weapon', 'guns', 'gun'
-            loadout_type = :weapons
+            :weapons
           when 'armor'
-            loadout_type = :armor
+            :armor
           else
-            loadout_type = :full
+            :full
           end
 
           results = Gunsmith::Bot.instance.query_loadout(bungie_membership, loadout_type)
-          break if results.blank?
+          next if results.blank?
 
           loadout_response(client, data, results, loadout_type)
         else
           results = Gunsmith::Bot.instance.query(bungie_membership, requested_slot)
-          break if results.blank?
+          next if results.blank?
 
           single_slot_response(client, data, results)
         end
@@ -264,10 +275,10 @@ module Gunsmith
         # Masterwork / Mod
         masterwork = 'n/a'
         if results[:item][:masterwork]
-          if results&.dig(:item, :masterwork, :affected_stat)
-            masterwork = "#{results[:item][:masterwork][:affected_stat]} - #{results[:item][:masterwork][:value]}"
+          masterwork = if results&.dig(:item, :masterwork, :affected_stat)
+            "#{results[:item][:masterwork][:affected_stat]} - #{results[:item][:masterwork][:value]}"
           else
-            masterwork = 'Yes'
+            'Yes'
           end
         end
         attachment_fields.push(
@@ -311,7 +322,7 @@ module Gunsmith
                          text:        attachment_text,
                          fallback:    attachment_fallback,
                          fields:      attachment_fields,
-                         footer_icon: BOT_ICON_URL,
+                         footer_icon: BANSHEE_BOT_ICON_URL,
                          # footer:      BOT_NAME,
                          footer: attachment_footer,
                          # ts:          Time.now.to_i,
@@ -434,7 +445,7 @@ module Gunsmith
       output += additional_message.to_s unless additional_message&.blank?
       output += "\n"
 
-      output += "Usage: @#{BOT_USERNAME} <bungie_name> <slot>\n"
+      output += "Usage: @#{BANSHEE_BOT_USERNAME} <bungie_name> <slot>\n"
       output += "Please use the 'help' command for more info."
 
       output.strip!
@@ -450,7 +461,7 @@ module Gunsmith
       output += "<@#{data&.user}>: " unless data&.user&.blank?
 
       output += "Memory's not what it used to be. Who're you again?\n"
-      output += "Use `@#{BOT_USERNAME} register <bungie_name>` to register your Bungie.net profile.\n"
+      output += "Use `@#{BANSHEE_BOT_USERNAME} register <bungie_name>` to register your Bungie.net profile.\n"
       output += "Use the 'help' command for more info."
 
       output.strip!
@@ -475,7 +486,7 @@ module Gunsmith
 
     def self.load_and_update_team(team_id, name, domain)
       # If the team doesn't already exist, create it
-      team        = Slack::SlackTeam.find_or_create_by(team_id: team_id)
+      team        = Slack::Team.find_or_initialize_by(team_id: team_id)
       team.name   = name
       team.domain = domain
       team.save

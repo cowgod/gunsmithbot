@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require 'discordrb'
 require 'discordrb/webhooks'
 
@@ -8,15 +9,22 @@ module Gunsmith
   # Wrapper for GunsmithBot class, to adapt it to usage in Discord
   class DiscordBot < Discordrb::Bot
     DISCORD_CLIENT_ID = 496066614614294529
-    BOT_NAME          = 'Banshee-44'.freeze
-    BOT_ICON_URL      = 'http://binrock.net/banshee44.png'.freeze
-    BOT_USERNAME      = (ENV['GUNSMITH_BOT_USERNAME'] || 'banshee-44')
+
+    BANSHEE_BOT_NAME     = 'Banshee-44'
+    BANSHEE_BOT_ICON_URL = 'https://i.imgur.com/bYLc6Hn.png'
+    BANSHEE_BOT_USERNAME = (ENV['GUNSMITH_BOT_USERNAME'] || 'banshee-44')
+
+    SAINT_BOT_NAME     = 'Saint-14'
+    SAINT_BOT_ICON_URL = 'https://i.imgur.com/t0xjaer.png'
+    # SAINT_BOT_USERNAME = (ENV['GUNSMITH_BOT_USERNAME'] || 'banshee-44')
+
+    attr_reader :bot
 
 
     def initialize
       raise 'DISCORD_API_KEY not set' unless ENV['DISCORD_API_TOKEN'].present?
 
-      @bot = Discordrb::Bot.new token: ENV['DISCORD_API_TOKEN'], name: BOT_NAME, client_id: DISCORD_CLIENT_ID
+      @bot = Discordrb::Bot.new token: ENV['DISCORD_API_TOKEN'], name: BANSHEE_BOT_NAME, client_id: DISCORD_CLIENT_ID
 
 
       # Here we output the invite URL to the console so the bot account can be invited to the channel. This only has to be
@@ -42,19 +50,25 @@ module Gunsmith
             To show off your weapon/armor, message the bot with your Bungie Name and weapon/armor slot, separated by spaces. The bot will always look at the *most recently played character* on your account.
             The standard usage looks like this:
 
-            ```@#{BOT_USERNAME} <bungie_name> <slot>```
+            ```@#{BANSHEE_BOT_USERNAME} <bungie_name> <slot>```
 
             For example:
 
-            ```@#{BOT_USERNAME} MyBungieName#1234 kinetic```
+            ```@#{BANSHEE_BOT_USERNAME} MyBungieName#1234 kinetic```
 
-            If you've registered with the bot (`@#{BOT_USERNAME} register <bungie_name>`) then you can simply list the slot to display:
+            If you've registered with the bot (`@#{BANSHEE_BOT_USERNAME} register <bungie_name>`) then you can simply list the slot to display:
 
-            ```@#{BOT_USERNAME} kinetic```
+            ```@#{BANSHEE_BOT_USERNAME} kinetic```
 
             In addition to requesting a specific slot, you can say `weapons`, `armor`, or `loadout`, and you'll get a complete summary of every currently equipped weapon, armor piece, or both.
 
             The full list of supported slots is:```#{Bungie::Api::ITEM_BUCKET_IDS.values.map { |bucket_id| Bungie::Api.get_bucket_code(bucket_id) }.reject(&:blank?).join(', ')}, weapons, armor, loadout```
+
+            To enable or disable reporting of your Twitch clips (if configured on this server), use the following command:
+
+            ```@#{BANSHEE_BOT_USERNAME} twitch <off|on>```
+
+            The Twitch Clip setting is per-server, and it applies to the server in which you message the bot with the command. 
 
             GitHub Repository: #{Gunsmith::Bot::BOT_GITHUB_URL}
 
@@ -71,12 +85,12 @@ HELP
 
           # Start out our response by tagging the user that messaged us
           message_text = ''
-          message_text += "<@#{event.user&.id}>: " unless event.user.blank?
+          message_text += "#{event.user&.mention}: " unless event.user.blank?
 
           requested_bungie_name = args[1]
 
           unless requested_bungie_name
-            message_text += "Usage: `@#{BOT_USERNAME} register <bungie_name>`"
+            message_text += "Usage: `@#{BANSHEE_BOT_USERNAME} register <bungie_name>`"
             event.channel&.send_message message_text
             next
           end
@@ -84,10 +98,10 @@ HELP
 
           bungie_membership = if requested_bungie_name.positive_integer?
             # If they provided a numeric bungie.net membership ID, look them up by that
-            Bungie::BungieMembership.search_membership_by_id(requested_bungie_name)
+            Bungie::Membership.load_by_id(requested_bungie_name)
           else
             # Otherwise, try to search for them by Bungie Name
-            Bungie::BungieMembership.search_membership_by_bungie_name(requested_bungie_name)
+            Bungie::Membership.load_by_bungie_name(requested_bungie_name)
           end
 
           # If we didn't find a membership, print an error
@@ -98,10 +112,18 @@ HELP
 
 
           # Associate the specified Bungie.net membership with the Discord user who made the request
-          user                   = Discord::DiscordUser.find_or_create_by(user_id: event.message.author.id)
-          user.username          = event.message.author.username
-          user.bungie_membership = bungie_membership
-          user.save
+          discord_user             = Discord::User.find_or_initialize_by(user_id: event&.message&.author&.id)
+          discord_user.username    = event&.message&.author&.username
+          discord_user.bungie_user = bungie_membership.bungie_user
+          discord_user.save
+
+          discord_server      = Discord::Server.find_or_initialize_by(server_id: event&.message&.server&.id)
+          discord_server.name = event&.message&.server&.name
+          discord_server.save
+
+          discord_membership                     = Discord::Membership.find_or_initialize_by(user: discord_user, server: discord_server)
+          discord_membership.notify_twitch_clips = true
+          discord_membership.save
 
 
           message_text += "Successfully registered you with Bungie Name `#{bungie_membership.bungie_name}`."
@@ -109,6 +131,40 @@ HELP
           message_text.strip!
 
           event.channel&.send_message message_text
+
+
+        when 'twitch', 'twitchclips', 'twitch_clips', 'clips'
+
+          # Let's save info about the user, server, and membership, even if we don't know their Bungie account
+          discord_user          = Discord::User.find_or_initialize_by(user_id: event&.message&.author&.id)
+          discord_user.username = event&.message&.author&.username
+          discord_user.save
+
+          discord_server      = Discord::Server.find_or_initialize_by(server_id: event&.message&.server&.id)
+          discord_server.name = event&.message&.server&.name
+          discord_server.save
+
+          discord_membership                     = Discord::Membership.find_or_initialize_by(user: discord_user, server: discord_server)
+          discord_membership.notify_twitch_clips = false
+          discord_membership.save
+
+
+          unless discord_user.bungie_user
+            print_unregistered_user_message(event: event)
+            next
+          end
+
+
+          # Set the 'notify_twitch_clips' setting for the user who called us
+          discord_membership.notify_twitch_clips = !(args[1]&.match?(/no|false|off|0|cancel/i))
+          discord_membership.save
+
+
+          # Reply to the user that messaged us
+          message_text = "#{event.user&.mention}: " unless event.user.blank?
+          message_text += "Successfully set your Twitch Clips preference for the '#{discord_server.name}' server to: `#{discord_membership.notify_twitch_clips ? 'ON' : 'OFF'}`."
+
+          event.channel&.send_message message_text.strip
 
 
         else
@@ -123,8 +179,8 @@ HELP
               requested_slot        = args[0]
 
               # If they just provided a slot, see if they're registered with us
-              user              = Discord::DiscordUser.find_by(user_id: event.message.author.id)
-              bungie_membership = user&.bungie_membership
+              discord_user      = Discord::User.find_by(user_id: event.message.author.id)
+              bungie_membership = discord_user&.bungie_user&.memberships&.first
             when 2..Float::INFINITY
               # Grab everything but the last argument as the Bungie Name
               requested_bungie_name = args[0..-2].join(' ')
@@ -138,10 +194,10 @@ HELP
             if !bungie_membership && requested_bungie_name
               bungie_membership = if requested_bungie_name.positive_integer?
                 # If they provided a numeric bungie.net membership ID, look them up by that
-                Bungie::BungieMembership.search_membership_by_id(requested_bungie_name)
+                Bungie::Membership.load_by_id(requested_bungie_name)
               else
                 # Otherwise, try to search for them by Bungie Name
-                Bungie::BungieMembership.search_membership_by_bungie_name(requested_bungie_name)
+                Bungie::Membership.load_by_bungie_name(requested_bungie_name)
               end
             end
 
@@ -159,7 +215,7 @@ HELP
 
             ## Fixup the DB record. If it's missing the Bungie User, fetch it and save it
             unless bungie_membership.bungie_user
-              bungie_membership.bungie_user = Bungie::BungieUser.search_user_by_platform_membership_id(bungie_membership.membership_id)
+              bungie_membership.bungie_user = Bungie::User.load_by_destiny_membership_id(bungie_membership.membership_id)
               bungie_membership.save
             end
 
@@ -202,7 +258,7 @@ HELP
       icon_url            = results[:item][:has_icon] ? "https://www.bungie.net#{results[:item][:icon]}" : nil
 
 
-      message_text = "<@#{event&.user&.id}>: "
+      message_text = "#{event&.user&.mention}: "
       message_text += "`#{results[:bungie_membership].bungie_name} #{results[:slot]}`\n"
 
       # if results[:gamertag_suggestions].present?
@@ -308,7 +364,7 @@ HELP
         embed.color       = Bungie::Api.get_hex_color_for_damage_type(results[:item][:damage_type])
         embed.url         = destiny_tracker_url
         embed.thumbnail   = Discordrb::Webhooks::EmbedImage.new(url: icon_url)
-        embed.footer      = Discordrb::Webhooks::EmbedFooter.new(text: attachment_footer, icon_url: BOT_ICON_URL)
+        embed.footer      = Discordrb::Webhooks::EmbedFooter.new(text: attachment_footer, icon_url: BANSHEE_BOT_ICON_URL)
         embed.timestamp   = Time.now
 
         attachment_fields.each do |field|
@@ -336,7 +392,7 @@ HELP
         'loadout'
       end
 
-      message_text = "<@#{event&.user&.id}>: "
+      message_text = "#{event&.user&.mention}: "
       message_text += "`#{results[:bungie_membership].bungie_name} #{canonical_loadout_type}`\n"
 
 
@@ -390,9 +446,7 @@ HELP
           field_text += "\n- Masterwork: #{item[:masterwork][:affected_stat]} - #{item[:masterwork][:value]}"
         end
 
-        if item[:mod]
-          field_text += "\n- Mod: #{item[:mod][:name]}"
-        end
+        field_text += "\n- Mod: #{item[:mod][:name]}" if item[:mod]
 
         next if field_text.blank? || field_text == '- Perks: '
 
@@ -458,10 +512,10 @@ HELP
 
       output = ''
 
-      output += "<@#{event&.user&.id}>: " unless event&.user.blank?
+      output += "#{event&.user&.mention}: " unless event&.user.blank?
 
       output += "Memory's not what it used to be. Who're you again?\n"
-      output += "Use `@#{BOT_USERNAME} register <bungie_name>` to register your Bungie.net profile.\n"
+      output += "Use `@#{BANSHEE_BOT_USERNAME} register <bungie_name>` to register your Bungie.net profile.\n"
       output += "Use the 'help' command for more info."
 
       output.strip!
@@ -476,7 +530,7 @@ HELP
 
       output = ''
 
-      output += "<@#{event&.user&.id}>: " unless event&.user.blank?
+      output += "#{event&.user&.mention}: " unless event&.user.blank?
 
       output += "Couldn't find a user for Bungie Name '#{requested_bungie_name}'."
       output += "Use the 'help' command for more info."
@@ -493,16 +547,90 @@ HELP
 
       output = ''
 
-      output += "<@#{event&.user&.id}>: " unless event&.user.blank?
+      output += "#{event&.user&.mention}: " unless event&.user.blank?
       output += additional_message.to_s unless additional_message.blank?
       output += "\n"
 
-      output += "Usage: `@#{BOT_USERNAME} <bungie_net> <slot>`\n"
+      output += "Usage: `@#{BANSHEE_BOT_USERNAME} <bungie_net> <slot>`\n"
       output += "Please use the 'help' command for more info."
 
       output.strip!
 
       event&.channel&.send_message output
+    end
+
+
+    def self.notify_twitch_clip(clip:, webhook_url:)
+      raise ArgumentError unless clip && webhook_url
+
+
+      streamer_name     = clip.twitch_video&.twitch_user&.display_name || '(unknown)'
+      map_name          = clip.activity&.map_name || '(unknown)'
+      activity_name     = clip.activity&.activity_name || '(unknown)'
+      map_thumbnail_url = clip.activity&.map_thumbnail_url
+      clip_url          = clip.url
+
+
+      body_username = CONFIG&.dig('twitch_clips', 'bot_name') || SAINT_BOT_NAME
+
+      embed_title     = "#{streamer_name} played #{activity_name} on #{map_name}"
+      embed_timestamp = clip.activity.started_at
+
+
+      discord_users_to_mention = []
+      embed_fields             = []
+
+
+      clip.tracked_players&.map(&:bungie_user)&.each do |bungie_user|
+        discord_users_to_mention += bungie_user.discord_users.to_a
+
+
+        # Find the player that corresponds to this bungie_user
+        player = clip.activity&.players&.select { |player| player.bungie_user == bungie_user }&.first
+        next unless player
+
+        field_text =
+          [
+            "**K:** #{player.kills}",
+            "**D:** #{player.deaths}",
+            "**K/D:** #{player.kd}"
+          ].join(' **|** ')
+
+        embed_fields.push({
+                            name:   bungie_user.bungie_name,
+                            value:  field_text,
+                            inline: false
+                          })
+      end
+
+      body_text = 'New Twitch clip found'
+      body_text += " featuring #{discord_users_to_mention.map(&:mention).to_sentence}" if discord_users_to_mention
+      body_text += ':'
+
+
+      Cowgod::Logger.log "#{self.class}.#{__method__} - Notifying clip: #{embed_title} (#{embed_timestamp.getlocal.strftime('%Y-%m-%d %I:%M %P')})"
+
+      client = Discordrb::Webhooks::Client.new(url: webhook_url)
+
+      begin
+        client.execute do |builder|
+          builder.username   = body_username
+          builder.avatar_url = SAINT_BOT_ICON_URL
+          builder.content    = body_text
+
+          builder.add_embed do |embed|
+            embed.timestamp = embed_timestamp
+            embed.title     = embed_title
+            embed.url       = clip_url
+            embed.thumbnail = Discordrb::Webhooks::EmbedImage.new(url: map_thumbnail_url)
+            embed.fields    = embed_fields if embed_fields.size.positive?
+          end
+        end
+      rescue RestClient::BadRequest => e
+        Cowgod::Logger.log "#{self.class}.#{__method__} - ERROR: #{e}"
+      end
+
+      true
     end
   end
 end

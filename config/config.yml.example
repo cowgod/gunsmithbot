@@ -1,0 +1,10 @@
+twitch_clips:
+  bot_name: Saint-14
+  webhooks:
+    discord:
+      123456781234567812:
+        - https://discord.com/api/webhooks/xxxxxxxxxxxxxxxxxx/yyyyyyyyyyyyyyyyyyyyyyyyyy
+      456781234567812345:
+        - https://discord.com/api/webhooks/yyyyyyyyyyyyyyyyyy/zzzzzzzzzzzzzzzzzzzzzzzzzz
+    slack:
+      - https://hooks.slack.com/services/xxxxxxxxxx/yyyyyyyyy/zzzzzzzzzzzzzzzzzz
