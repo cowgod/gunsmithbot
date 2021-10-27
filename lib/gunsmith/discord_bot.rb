@@ -122,8 +122,8 @@ HELP
           discord_server.name = event&.message&.server&.name
           discord_server.save
 
-          discord_membership                     = Discord::Membership.find_or_initialize_by(user: discord_user, server: discord_server)
-          discord_membership.notify_twitch_clips = true
+          discord_membership                       = Discord::Membership.find_or_initialize_by(user: discord_user, server: discord_server)
+          discord_membership.announce_twitch_clips = true
           discord_membership.save
 
 
@@ -145,8 +145,8 @@ HELP
           discord_server.name = event&.message&.server&.name
           discord_server.save
 
-          discord_membership                     = Discord::Membership.find_or_initialize_by(user: discord_user, server: discord_server)
-          discord_membership.notify_twitch_clips = false
+          discord_membership                       = Discord::Membership.find_or_initialize_by(user: discord_user, server: discord_server)
+          discord_membership.announce_twitch_clips = false
           discord_membership.save
 
 
@@ -156,19 +156,19 @@ HELP
           end
 
 
-          # Set the 'notify_twitch_clips' setting for the user who called us
+          # Set the 'find_twitch_clips' setting for the user who called us
           find_twitch_clips = !(args[1]&.match?(/no|false|off|0|cancel/i))
 
 
-          discord_membership.notify_twitch_clips = find_twitch_clips
+          discord_membership.announce_twitch_clips = find_twitch_clips
           discord_membership.save
 
           # If they're turning notification ON for this server, then be sure the bungie user is set to
           # find clips. But if they're turning notification OFF for this server, don't turn off the
           # "find_twitch_clips" setting, because it may still be on for other servers.
           # We could get more clever and turn that field on and off dynamically based on whether
-          # "notify_twitch_clips" is on for ANY server for this user, but for now, we'd rather err
-          # on the side of saving more clips, rather than less, even if we don't notify them
+          # "announce_twitch_clips" is on for ANY server for this user, but for now, we'd rather err
+          # on the side of saving more clips, rather than less, even if we don't announce them
           discord_user.bungie_user.find_twitch_clips = true if find_twitch_clips
           discord_user.bungie_user.save
 
@@ -572,7 +572,7 @@ HELP
     end
 
 
-    def self.notify_twitch_clip(clip:, webhook_url:)
+    def self.announce_twitch_clip(clip:, webhook_url:)
       raise ArgumentError unless clip && webhook_url
 
 
@@ -620,7 +620,7 @@ HELP
       body_text += ':'
 
 
-      Cowgod::Logger.log "#{self.class}.#{__method__} - Notifying clip: #{embed_title} (#{embed_timestamp.getlocal.strftime('%Y-%m-%d %I:%M %P')})"
+      Cowgod::Logger.log "#{self.class}.#{__method__} - Announcing clip: #{embed_title} (#{embed_timestamp.getlocal.strftime('%Y-%m-%d %I:%M %P')})"
 
       client = Discordrb::Webhooks::Client.new(url: webhook_url)
 

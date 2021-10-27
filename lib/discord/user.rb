@@ -8,7 +8,7 @@ module Discord
     has_many :servers, through: :memberships
     belongs_to :bungie_user, class_name: 'Bungie::User', optional: true
 
-    scope :notification_servers, -> { joins(:memberships, :servers).where('membership.notify_twitch_clips = 1') }
+    scope :announcement_servers, -> { joins(:memberships, :servers).where('membership.announce_twitch_clips = 1') }
 
 
     # Utility function to mention users in messages
@@ -18,8 +18,8 @@ module Discord
     end
 
 
-    def notification_servers
-      memberships.notify_twitch_clips.map(&:server)
+    def announcement_servers
+      memberships.announce_twitch_clips.map(&:server)
     end
 
   end

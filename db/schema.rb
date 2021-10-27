@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2021_10_27_060304) do
+ActiveRecord::Schema.define(version: 2021_10_27_182611) do
 
   create_table "bungie_activities", charset: "utf8", force: :cascade do |t|
     t.datetime "started_at", null: false
@@ -30,7 +30,7 @@ ActiveRecord::Schema.define(version: 2021_10_27_060304) do
   create_table "bungie_activity_clips", charset: "utf8", force: :cascade do |t|
     t.bigint "bungie_activity_id", null: false
     t.bigint "twitch_video_id", null: false
-    t.datetime "notified_at"
+    t.datetime "announced_at"
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
     t.index ["bungie_activity_id", "twitch_video_id"], name: "idx__bng_act_clips__activity_id__twitch_video_id", unique: true
@@ -120,7 +120,7 @@ ActiveRecord::Schema.define(version: 2021_10_27_060304) do
   create_table "discord_memberships", charset: "utf8", force: :cascade do |t|
     t.bigint "discord_user_id", null: false
     t.bigint "discord_server_id", null: false
-    t.boolean "notify_twitch_clips", null: false
+    t.boolean "announce_twitch_clips", null: false
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
     t.index ["discord_server_id"], name: "index_discord_memberships_on_discord_server_id"

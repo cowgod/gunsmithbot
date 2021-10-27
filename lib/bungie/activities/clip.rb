@@ -8,7 +8,7 @@ module Bungie
       belongs_to :twitch_video, class_name: 'Twitch::Video'
 
 
-      scope :pending_notification, -> { joins(:activity).where(notified_at: nil).order('bungie_activities.started_at ASC') }
+      scope :pending_announcement, -> { joins(:activity).where(announced_at: nil).order('bungie_activities.started_at ASC') }
 
 
       def offset
@@ -28,11 +28,11 @@ module Bungie
       end
 
 
-      def notify
-        # While we get up and running, only notify clips for the last few weeks
+      def announce
+        # While we get up and running, only announce clips for the last few weeks
         unless activity&.started_at && activity.started_at > Time.new(2021, 10, 1)
           # Mark clip as reported
-          self.notified_at = Time.now
+          self.announced_at = Time.now
           save
           return true
         end
@@ -49,7 +49,7 @@ module Bungie
           # next unless player&.bungie_user&.discord_users.respond_to? :each
 
           player&.bungie_user&.discord_users&.each do |discord_user|
-            discord_user.notification_servers.each do |server|
+            discord_user.announcement_servers.each do |server|
               next unless $config&.dig('twitch_clips', 'webhooks', 'discord', server.server_id)
 
               $config&.dig('twitch_clips', 'webhooks', 'discord', server.server_id)&.each do |webhook_url|
@@ -65,7 +65,7 @@ module Bungie
 
         # Send a message to each destination we found
         webhook_urls[:discord]&.each_key do |webhook_url|
-          Gunsmith::DiscordBot.notify_twitch_clip(
+          Gunsmith::DiscordBot.announce_twitch_clip(
             clip:        self,
             webhook_url: webhook_url
           )
@@ -74,7 +74,7 @@ module Bungie
 
         ##### TODO
         # notification_destinations[:slack]&.each_key do |webhook_url|
-        #   # Gunsmith::SlackBot.notify_twitch_clip(
+        #   # Gunsmith::SlackBot.announce_twitch_clip(
         #   #   clip:        clip,
         #   #   webhook_url: webhook_url,
         #   # )
@@ -82,7 +82,7 @@ module Bungie
 
 
         # Mark clip as reported
-        self.notified_at = Time.now
+        self.announced_at = Time.now
         save
       end
 

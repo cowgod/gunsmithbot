@@ -7,6 +7,7 @@ require_relative '../environment'
 Cowgod::Logger.log 'Importing new activities...'
 
 Bungie::User.where(find_twitch_clips: true)&.each do |bungie_user|
+  ### TODO -- move this logic into Bungie::User
   bungie_user&.memberships&.each do |membership|
     membership.load_characters&.values&.each do |character|
       character.load_unscanned_activities(mode: Bungie::Api::ACTIVITY_MODES[:all_pvp])&.each_value do |activity|
