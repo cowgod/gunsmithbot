@@ -8,6 +8,8 @@ require 'tempfile'
 require 'sqlite3'
 require 'zip'
 
+require_relative '../concerns/retryable'
+
 require_relative 'manifest'
 
 require 'pp'
@@ -17,6 +19,7 @@ module Bungie
   class Api
     include Singleton
     include HTTParty
+    include Retryable
 
     base_uri 'https://www.bungie.net/Platform/'
 
@@ -379,8 +382,10 @@ module Bungie
 
       Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
 
-      response = self.class.get(url, @options)
-      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
+      response = with_retry do
+        self.class.get(url, @options)
+      end
+      raise QueryError, 'API request failed' unless response && response.code == SUCCESS_CODE
 
       response.parsed_response&.dig('Response') || []
     end
@@ -398,8 +403,10 @@ module Bungie
 
       Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
 
-      response = self.class.get(url, @options)
-      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
+      response = with_retry do
+        self.class.get(url, @options)
+      end
+      raise QueryError, 'API request failed' unless response && response.code == SUCCESS_CODE
 
       response.parsed_response&.dig('Response') || []
     end
@@ -417,8 +424,10 @@ module Bungie
 
       Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
 
-      response = self.class.get(url, @options)
-      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
+      response = with_retry do
+        self.class.get(url, @options)
+      end
+      raise QueryError, 'API request failed' unless response && response.code == SUCCESS_CODE
 
       response.parsed_response&.dig('Response') || []
     end
@@ -436,13 +445,15 @@ module Bungie
 
       Cowgod::Logger.log "#{self.class}.#{__method__} - #{url} - #{JSON.pretty_generate(query_options)}"
 
-      response = self.class.get(
-        url,
-        @options.merge(
-          query: query_options
+      response = with_retry do
+        self.class.get(
+          url,
+          @options.merge(
+            query: query_options
+          )
         )
-      )
-      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
+      end
+      raise QueryError, 'API request failed' unless response && response.code == SUCCESS_CODE
 
       characters = response.parsed_response['Response']&.dig('characters', 'data')
       return nil unless characters
@@ -492,15 +503,17 @@ module Bungie
 
       Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
 
-      response = self.class.get(
-        url,
-        @options.merge(
-          query: {
-            components: desired_components.join(',')
-          }
+      response = with_retry do
+        self.class.get(
+          url,
+          @options.merge(
+            query: {
+              components: desired_components.join(',')
+            }
+          )
         )
-      )
-      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
+      end
+      raise QueryError, 'API request failed' unless response && response.code == SUCCESS_CODE
 
       character = response.parsed_response['Response']&.dig('character', 'data')
       return nil unless character
@@ -533,13 +546,15 @@ module Bungie
 
       Cowgod::Logger.log "#{self.class}.#{__method__} - #{url} - #{JSON.pretty_generate(query_options)}"
 
-      response = self.class.get(
-        url,
-        @options.merge(
-          query: query_options
+      response = with_retry do
+        self.class.get(
+          url,
+          @options.merge(
+            query: query_options
+          )
         )
-      )
-      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
+      end
+      raise QueryError, 'API request failed' unless response && response.code == SUCCESS_CODE
 
       item_instance = response.parsed_response['Response']
       return nil unless item_instance
@@ -779,13 +794,15 @@ module Bungie
 
       Cowgod::Logger.log "#{self.class}.#{__method__} - #{url} - #{JSON.pretty_generate(query_options)}"
 
-      response = self.class.get(
-        url,
-        @options.merge(
-          query: query_options
+      response = with_retry do
+        self.class.get(
+          url,
+          @options.merge(
+            query: query_options
+          )
         )
-      )
-      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
+      end
+      raise QueryError, 'API request failed' unless response && response.code == SUCCESS_CODE
 
       activities = response.parsed_response&.dig('Response', 'activities') || []
 
@@ -806,26 +823,29 @@ module Bungie
 
       Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
 
-      response = self.class.get(url, @options)
-      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
+      response = with_retry do
+        self.class.get(url, @options)
+      end
+      raise QueryError, 'API request failed' unless response && response.code == SUCCESS_CODE
 
 
       response.parsed_response['Response'] || {}
     end
 
 
-    ### UNSUPPORTED ENDPOINT, DON'T USE
-    def get_user_for_id(id)
-      url = "/User/GetBungieAccount/#{id.to_s.uri_encode}/254/"
-
-      Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
-
-      response = self.class.get(url, @options)
-      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
-
-      results = response.parsed_response['Response']
-
-    end
+    # ### UNSUPPORTED ENDPOINT, DON'T USE
+    # def get_user_for_id(id)
+    #   url = "/User/GetBungieAccount/#{id.to_s.uri_encode}/254/"
+    #
+    #   Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
+    #
+    #   response = with_retry do
+    #     self.class.get(url, @options)
+    #   end
+    #   raise QueryError, 'API request failed' unless response && response.code == SUCCESS_CODE
+    #
+    #   response.parsed_response['Response']
+    # end
 
 
     # def get_xxxx
@@ -976,8 +996,10 @@ module Bungie
 
       Cowgod::Logger.log "#{self.class}.#{__method__} - #{url}"
 
-      response = self.class.get(url, @options)
-      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
+      response = with_retry do
+        self.class.get(url, @options)
+      end
+      raise QueryError, 'API request failed' unless response && response.code == SUCCESS_CODE
 
       parsed_response = response.parsed_response['Response']
       raise 'Invalid manifest URL received' unless parsed_response

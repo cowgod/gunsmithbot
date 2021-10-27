@@ -5,6 +5,8 @@ require 'httparty'
 require 'cgi'
 require 'time'
 
+require_relative '../concerns/retryable'
+
 require 'pp'
 
 module Twitch
@@ -12,6 +14,7 @@ module Twitch
   class Api
     include Singleton
     include HTTParty
+    include Retryable
 
     base_uri 'https://api.twitch.tv/helix'
 
@@ -48,13 +51,15 @@ module Twitch
 
       Cowgod::Logger.log "#{self.class}.#{__method__} - #{url} - #{JSON.pretty_generate(query_options)}"
 
-      response = self.class.post(
-        url,
-        @options.merge(
-          query: query_options
+      response = with_retry do
+        self.class.post(
+          url,
+          @options.merge(
+            query: query_options
+          )
         )
-      )
-      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
+      end
+      raise QueryError, 'API request failed' unless response && response.code == SUCCESS_CODE
 
 
       @access_token = response.parsed_response&.dig('access_token')
@@ -84,13 +89,15 @@ module Twitch
 
       Cowgod::Logger.log "#{self.class}.#{__method__} - #{url} - #{JSON.pretty_generate(query_options)}"
 
-      response = self.class.get(
-        url,
-        @options.merge(
-          query: query_options
+      response = with_retry do
+        self.class.get(
+          url,
+          @options.merge(
+            query: query_options
+          )
         )
-      )
-      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
+      end
+      raise QueryError, 'API request failed' unless response && response.code == SUCCESS_CODE
 
       response.parsed_response&.dig('data')&.first || {}
     end
@@ -109,13 +116,15 @@ module Twitch
 
       Cowgod::Logger.log "#{self.class}.#{__method__} - #{url} - #{JSON.pretty_generate(query_options)}"
 
-      response = self.class.get(
-        url,
-        @options.merge(
-          query: query_options
+      response = with_retry do
+        self.class.get(
+          url,
+          @options.merge(
+            query: query_options
+          )
         )
-      )
-      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
+      end
+      raise QueryError, 'API request failed' unless response && response.code == SUCCESS_CODE
 
       response.parsed_response&.dig('data')&.first || {}
     end
@@ -134,13 +143,15 @@ module Twitch
 
       Cowgod::Logger.log "#{self.class}.#{__method__} - #{url} - #{JSON.pretty_generate(query_options)}"
 
-      response = self.class.get(
-        url,
-        @options.merge(
-          query: query_options
+      response = with_retry do
+        self.class.get(
+          url,
+          @options.merge(
+            query: query_options
+          )
         )
-      )
-      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
+      end
+      raise QueryError, 'API request failed' unless response && response.code == SUCCESS_CODE
 
       results = response.parsed_response&.dig('data') || []
 
@@ -169,13 +180,15 @@ module Twitch
 
       Cowgod::Logger.log "#{self.class}.#{__method__} - #{url} - #{JSON.pretty_generate(query_options)}"
 
-      response = self.class.get(
-        url,
-        @options.merge(
-          query: query_options
+      response = with_retry do
+        self.class.get(
+          url,
+          @options.merge(
+            query: query_options
+          )
         )
-      )
-      raise QueryError, 'API request failed' unless response.code == SUCCESS_CODE
+      end
+      raise QueryError, 'API request failed' unless response && response.code == SUCCESS_CODE
 
       results = response.parsed_response&.dig('data') || []
 
