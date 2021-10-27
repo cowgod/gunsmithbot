@@ -99,10 +99,10 @@ HELP
 
           bungie_membership = if requested_bungie_name.positive_integer?
             # If they provided a numeric bungie.net membership ID, look them up by that
-            Bungie::Membership.load_by_id(requested_bungie_name)
+            Bungie::Membership.load_by_id(requested_bungie_name, find_twitch_clips_if_new: true)
           else
             # Otherwise, try to search for them by Bungie Name
-            Bungie::Membership.load_by_bungie_name(requested_bungie_name)
+            Bungie::Membership.load_by_bungie_name(requested_bungie_name, find_twitch_clips_if_new: true)
           end
 
           # If we didn't find a membership, print an error
@@ -157,13 +157,24 @@ HELP
 
 
           # Set the 'notify_twitch_clips' setting for the user who called us
-          discord_membership.notify_twitch_clips = !(args[1]&.match?(/no|false|off|0|cancel/i))
+          find_twitch_clips = !(args[1]&.match?(/no|false|off|0|cancel/i))
+
+
+          discord_membership.notify_twitch_clips = find_twitch_clips
           discord_membership.save
 
+          # If they're turning notification ON for this server, then be sure the bungie user is set to
+          # find clips. But if they're turning notification OFF for this server, don't turn off the
+          # "find_twitch_clips" setting, because it may still be on for other servers.
+          # We could get more clever and turn that field on and off dynamically based on whether
+          # "notify_twitch_clips" is on for ANY server for this user, but for now, we'd rather err
+          # on the side of saving more clips, rather than less, even if we don't notify them
+          discord_user.bungie_user.find_twitch_clips = true if find_twitch_clips
+          discord_user.bungie_user.save
 
           # Reply to the user that messaged us
           message_text = "#{event.user&.mention}: " unless event.user.blank?
-          message_text += "Successfully set your Twitch Clips preference for the '#{discord_server.name}' server to: `#{discord_membership.notify_twitch_clips ? 'ON' : 'OFF'}`."
+          message_text += "Successfully set your Twitch Clips preference for the '#{discord_server.name}' server to: `#{find_twitch_clips ? 'ON' : 'OFF'}`."
 
           event.channel&.send_message message_text.strip
 

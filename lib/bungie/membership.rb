@@ -30,23 +30,23 @@ module Bungie
     ###### TODO -- we can't always assume crossplay is on. Need to be able to instantiate by both membership_type and membership_id
 
 
-    def self.load_by_id(membership_id)
+    def self.load_by_id(membership_id, find_twitch_clips_if_new: nil)
       results = Bungie::Api.instance.get_memberships_for_membership_id(membership_id)
       return nil unless results&.dig('destinyMemberships')
 
-      select_and_update_primary_membership(results&.dig('destinyMemberships'))
+      select_and_update_primary_membership(results&.dig('destinyMemberships'), find_twitch_clips_if_new: find_twitch_clips_if_new)
     end
 
 
-    def self.load_by_bungie_name(bungie_name)
+    def self.load_by_bungie_name(bungie_name, find_twitch_clips_if_new: nil)
       membership_rows = Bungie::Api.instance.get_memberships_for_bungie_name(bungie_name)
       return nil unless membership_rows&.count&.positive?
 
-      select_and_update_primary_membership(membership_rows)
+      select_and_update_primary_membership(membership_rows, find_twitch_clips_if_new: find_twitch_clips_if_new)
     end
 
 
-    def self.select_and_update_primary_membership(membership_rows)
+    def self.select_and_update_primary_membership(membership_rows, find_twitch_clips_if_new: nil)
       # Map the rows into a hash by their associated membership type
       membership_rows = membership_rows.map { |row| [row['membershipType'], row] }.to_h
 
@@ -63,7 +63,7 @@ module Bungie
       end
 
 
-      bungie_user = Bungie::User.load_by_destiny_membership_id(membership_row['membershipId'])
+      bungie_user = Bungie::User.load_by_destiny_membership_id(membership_row['membershipId'], find_twitch_clips_if_new: find_twitch_clips_if_new)
 
 
       membership                 = Bungie::Membership.find_or_initialize_by(membership_id: membership_row['membershipId'])

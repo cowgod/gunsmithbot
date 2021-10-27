@@ -22,7 +22,7 @@ module Bungie
     end
 
 
-    def self.load_by_destiny_membership_id(membership_id)
+    def self.load_by_destiny_membership_id(membership_id, find_twitch_clips_if_new: nil)
       return nil unless membership_id
 
       # Load the memberships for this platform membership, which will include info about the Bungie membership ID
@@ -30,21 +30,21 @@ module Bungie
       return nil unless results&.dig('bungieNetUser')&.dig('membershipId')
 
       # Load the Bungie user for this Bungie membership ID
-      load_by_bungie_membership_id(results&.dig('bungieNetUser')&.dig('membershipId'))
+      load_by_bungie_membership_id(results&.dig('bungieNetUser')&.dig('membershipId'), find_twitch_clips_if_new: find_twitch_clips_if_new)
     end
 
 
-    def self.load_by_bungie_membership_id(membership_id)
+    def self.load_by_bungie_membership_id(membership_id, find_twitch_clips_if_new: nil)
       return nil unless membership_id
 
       user_hash = Bungie::Api.instance.get_bungie_user_for_membership_id(membership_id)
       return nil unless user_hash&.dig('membershipId')
 
-      create_or_update_from_hash(user_hash)
+      create_or_update_from_hash(user_hash, find_twitch_clips_if_new: find_twitch_clips_if_new)
     end
 
 
-    def self.create_or_update_from_hash(user_hash)
+    def self.create_or_update_from_hash(user_hash, find_twitch_clips_if_new: nil)
       user = User.find_or_initialize_by(membership_id: user_hash&.dig('membershipId'))
 
       user.unique_name              = user_hash&.dig('uniqueName')
@@ -61,9 +61,8 @@ module Bungie
       user.first_accessed_at        = Time.parse(user_hash&.dig('firstAccess'))
       user.last_updated_at          = Time.parse(user_hash&.dig('lastUpdate'))
 
-      # If we're creating the user for the first time, default this setting to
-      # true. Otherwise, don't touch it
-      user.find_twitch_clips        = true if user.new_record?
+      user.find_twitch_clips        = true if find_twitch_clips_if_new && user.new_record?
+
 
       # Sometimes the `about` field contains weird characters the DB doesn't
       # like. If it gives us problems, save it again without that field
