@@ -69,7 +69,15 @@ module Twitch
       video.video_type    = video_hash&.dig('type')
       video.duration      = video_hash&.dig('duration').to_i
 
-      video.save
+      # Sometimes the `title` and `description` fields contain weird characters the DB doesn't
+      # like. If it gives us problems, save it again without those fields
+      begin
+        video.save
+      rescue ActiveRecord::StatementInvalid
+        video.title       = ''
+        video.description = ''
+        video.save
+      end
 
       video
     end

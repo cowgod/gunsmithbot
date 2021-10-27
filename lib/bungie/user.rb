@@ -65,7 +65,14 @@ module Bungie
       # true. Otherwise, don't touch it
       user.find_twitch_clips        = true if user.new_record?
 
-      user.save
+      # Sometimes the `about` field contains weird characters the DB doesn't
+      # like. If it gives us problems, save it again without that field
+      begin
+        user.save
+      rescue ActiveRecord::StatementInvalid
+        user.about = ''
+        user.save
+      end
 
       user
     end

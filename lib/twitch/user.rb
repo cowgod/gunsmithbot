@@ -58,7 +58,14 @@ module Twitch
       user.view_count         = user_hash&.dig('view_count').to_i
       user.channel_created_at = user_hash&.dig('created_at')
 
-      user.save
+      # Sometimes the `description` field contains weird characters the DB doesn't
+      # like. If it gives us problems, save it again without that field
+      begin
+        user.save
+      rescue ActiveRecord::StatementInvalid
+        user.description = ''
+        user.save
+      end
 
       user
     end
