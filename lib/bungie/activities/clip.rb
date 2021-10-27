@@ -29,6 +29,15 @@ module Bungie
 
 
       def notify
+        # While we get up and running, only notify clips for the last few weeks
+        unless activity&.started_at && activity.started_at > Time.new(2021, 10, 1)
+          # Mark clip as reported
+          self.notified_at = Time.now
+          save
+          return true
+        end
+
+
         # Build up a map of which destinations we'll be reporting this clip in
         webhook_urls = {
           discord: {},
