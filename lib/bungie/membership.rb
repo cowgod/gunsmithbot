@@ -66,7 +66,8 @@ module Bungie
       bungie_user = Bungie::User.load_by_destiny_membership_id(membership_row['membershipId'])
 
 
-      membership                 = Bungie::Membership.find_or_initialize_by(bungie_user: bungie_user, membership_id: membership_row['membershipId'])
+      membership                 = Bungie::Membership.find_or_initialize_by(membership_id: membership_row['membershipId'])
+      membership.bungie_user     = bungie_user
       membership.membership_type = membership_row['membershipType']
       membership.display_name    = membership_row['displayName']
 
