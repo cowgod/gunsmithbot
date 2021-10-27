@@ -11,6 +11,9 @@ require_relative '../environment'
 Cowgod::Logger.log 'Reporting new clips...'
 
 Bungie::Activities::Clip.pending_notification.each do |clip|
+  # While we get up and running, only notify clips for the last few weeks
+  next unless clip&.activity&.started_at && clip.activity.started_at > Time.new(2021, 10, 1)
+
   clip.notify if clip&.tracked_players
 end
 
