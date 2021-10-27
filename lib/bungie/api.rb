@@ -358,13 +358,14 @@ module Bungie
 
 
     def initialize
-      %w[BUNGIE_API_TOKEN].each do |var_name|
-        raise "Environment variable '#{var_name}' not set" unless ENV[var_name]
-      end
+      @api_key = ENV['BUNGIE_API_TOKEN'].presence || $config&.dig('api_keys', 'bungie')
+
+      raise 'Bungie API key not set' unless @api_key
 
       Cowgod::Logger.log "#{self.class}.#{__method__} - Initializing Bungie API... Done."
 
-      @options = { headers: { 'X-API-Key' => ENV['BUNGIE_API_TOKEN'] } }
+      @options = { headers: { 'X-API-Key' => @api_key } }
+
       initialize_manifest
     end
 

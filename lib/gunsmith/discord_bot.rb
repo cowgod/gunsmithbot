@@ -10,21 +10,22 @@ module Gunsmith
   class DiscordBot < Discordrb::Bot
     DISCORD_CLIENT_ID = 496066614614294529
 
-    BANSHEE_BOT_NAME     = 'Banshee-44'
+    BANSHEE_BOT_NAME     = ENV['BANSHEE_BOT_NAME'].presence || $config&.dig('general', 'banshee_bot_name')&.presence || 'Banshee-44'
+    BANSHEE_BOT_USERNAME = ENV['BANSHEE_BOT_USERNAME']&.presence || $config&.dig('general', 'banshee_bot_username')&.presence || 'banshee-44'
     BANSHEE_BOT_ICON_URL = 'https://i.imgur.com/bYLc6Hn.png'
-    BANSHEE_BOT_USERNAME = (ENV['GUNSMITH_BOT_USERNAME'] || 'banshee-44')
 
-    SAINT_BOT_NAME     = 'Saint-14'
+    SAINT_BOT_NAME     = ENV['SAINT_BOT_NAME']&.presence || $config&.dig('general', 'saint_bot_name')&.presence || 'Saint-14'
+    SAINT_BOT_USERNAME = ENV['SAINT_BOT_USERNAME']&.presence || $config&.dig('general', 'saint_bot_username')&.presence || 'saint-14'
     SAINT_BOT_ICON_URL = 'https://i.imgur.com/t0xjaer.png'
-    # SAINT_BOT_USERNAME = (ENV['GUNSMITH_BOT_USERNAME'] || 'banshee-44')
 
     attr_reader :bot
 
 
     def initialize
-      raise 'DISCORD_API_KEY not set' unless ENV['DISCORD_API_TOKEN'].present?
+      discord_api_token = ENV['DISCORD_API_TOKEN'].presence || $config&.dig('api_keys', 'discord')
+      raise 'Discord API token not set' unless discord_api_token.present?
 
-      @bot = Discordrb::Bot.new token: ENV['DISCORD_API_TOKEN'], name: BANSHEE_BOT_NAME, client_id: DISCORD_CLIENT_ID
+      @bot = Discordrb::Bot.new token: discord_api_token, name: BANSHEE_BOT_NAME, client_id: DISCORD_CLIENT_ID
 
 
       # Here we output the invite URL to the console so the bot account can be invited to the channel. This only has to be
@@ -571,7 +572,7 @@ HELP
       clip_url          = clip.url
 
 
-      body_username = CONFIG&.dig('twitch_clips', 'bot_name') || SAINT_BOT_NAME
+      body_username = $config&.dig('twitch_clips', 'bot_name') || SAINT_BOT_NAME
 
       embed_title     = "#{streamer_name} played #{activity_name} on #{map_name}"
       embed_timestamp = clip.activity.started_at

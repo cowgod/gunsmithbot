@@ -5,13 +5,13 @@ require 'slack-ruby-bot'
 module Gunsmith
   # Wrapper for GunsmithBot class, to adapt it to usage in Slack
   class SlackBot < SlackRubyBot::Bot
-    BANSHEE_BOT_NAME     = 'Banshee-44'
+    BANSHEE_BOT_NAME     = ENV['BANSHEE_BOT_NAME'].presence || $config&.dig('banshee_bot_name')&.presence || 'Banshee-44'
+    BANSHEE_BOT_USERNAME = ENV['BANSHEE_BOT_USERNAME']&.presence || $config&.dig('banshee_bot_username')&.presence || 'banshee-44'
     BANSHEE_BOT_ICON_URL = 'https://i.imgur.com/bYLc6Hn.png'
-    BANSHEE_BOT_USERNAME = (ENV['GUNSMITH_BOT_USERNAME'] || 'banshee-44')
 
-    SAINT_BOT_NAME     = 'Saint-14'
+    SAINT_BOT_NAME     = ENV['SAINT_BOT_NAME']&.presence || $config&.dig('saint_bot_name')&.presence || 'Saint-14'
+    SAINT_BOT_USERNAME = ENV['SAINT_BOT_USERNAME']&.presence || $config&.dig('saint_bot_username')&.presence || 'saint-14'
     SAINT_BOT_ICON_URL = 'https://i.imgur.com/t0xjaer.png'
-    # SAINT_BOT_USERNAME = (ENV['GUNSMITH_BOT_USERNAME'] || 'banshee-44')
 
     IGNORED_CHANNELS = [
       'C13V2MUBA' # FPVChat #gaming

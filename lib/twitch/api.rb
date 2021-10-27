@@ -21,9 +21,12 @@ module Twitch
 
 
     def initialize
-      %w[TWITCH_API_CLIENT_ID TWITCH_API_CLIENT_SECRET].each do |var_name|
-        raise "Environment variable '#{var_name}' not set" unless ENV[var_name]
-      end
+      @client_id     = ENV['TWITCH_API_CLIENT_ID'].presence || $config&.dig('api_keys', 'twitch_client_id')
+      @client_secret = ENV['TWITCH_API_CLIENT_SECRET'].presence || $config&.dig('api_keys', 'twitch_client_secret')
+
+      raise 'Twitch Client ID not set' unless @client_id
+      raise 'Twitch Client Secret not set' unless @client_secret
+
 
       Cowgod::Logger.log "#{self.class}.#{__method__} - Initializing Twitch API..."
 
@@ -39,8 +42,8 @@ module Twitch
 
       query_options = {
         grant_type:    'client_credentials',
-        client_id:     ENV['TWITCH_API_CLIENT_ID'],
-        client_secret: ENV['TWITCH_API_CLIENT_SECRET'],
+        client_id:     @client_id,
+        client_secret: @client_secret
       }
 
       Cowgod::Logger.log "#{self.class}.#{__method__} - #{url} - #{JSON.pretty_generate(query_options)}"
@@ -59,7 +62,7 @@ module Twitch
       @options = @options.merge(
         headers: {
           'Authorization' => "Bearer #{@access_token}",
-          'Client-Id'     => ENV['TWITCH_API_CLIENT_ID']
+          'Client-Id'     => @client_id
         }
       )
 

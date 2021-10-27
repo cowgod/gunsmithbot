@@ -41,9 +41,9 @@ module Bungie
 
           player&.bungie_user&.discord_users&.each do |discord_user|
             discord_user.notification_servers.each do |server|
-              next unless CONFIG&.dig('twitch_clips', 'webhooks', 'discord', server.server_id)
+              next unless $config&.dig('twitch_clips', 'webhooks', 'discord', server.server_id)
 
-              CONFIG&.dig('twitch_clips', 'webhooks', 'discord', server.server_id)&.each do |webhook_url|
+              $config&.dig('twitch_clips', 'webhooks', 'discord', server.server_id)&.each do |webhook_url|
                 webhook_urls[:discord][webhook_url] = true
               end
             end

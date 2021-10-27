@@ -8,7 +8,8 @@ Dir['./lib/**/*.rb', base: __dir__].each do |file|
 end
 
 
-CONFIG = YAML.safe_load(File.read('./config/config.yml'))
+# A global variable isn't my favorite solution, but it'll work for now
+$config = YAML.safe_load(File.read('./config/config.yml'))
 
 
 
