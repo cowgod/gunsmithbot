@@ -594,7 +594,7 @@ HELP
           [
             "**K:** #{player.kills}",
             "**D:** #{player.deaths}",
-            # "**K/D:** #{player.kd}"
+          # "**K/D:** #{player.kd}"
           ].join(' **|** ')
 
         embed_fields.push({

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2021_10_26_140300) do
+ActiveRecord::Schema.define(version: 2021_10_27_060304) do
 
   create_table "bungie_activities", charset: "utf8", force: :cascade do |t|
     t.datetime "started_at", null: false
@@ -109,7 +109,7 @@ ActiveRecord::Schema.define(version: 2021_10_26_140300) do
     t.string "twitch_display_name"
     t.string "bungie_display_name"
     t.string "bungie_display_name_code"
-    t.string "about"
+    t.text "about"
     t.datetime "first_accessed_at"
     t.datetime "last_updated_at"
     t.boolean "find_twitch_clips", default: false, null: false

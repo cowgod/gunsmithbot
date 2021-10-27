@@ -61,6 +61,10 @@ module Bungie
       user.first_accessed_at        = Time.parse(user_hash&.dig('firstAccess'))
       user.last_updated_at          = Time.parse(user_hash&.dig('lastUpdate'))
 
+      # If we're creating the user for the first time, default this setting to
+      # true. Otherwise, don't touch it
+      user.find_twitch_clips        = true if user.new_record?
+
       user.save
 
       user
