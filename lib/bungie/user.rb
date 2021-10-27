@@ -58,8 +58,8 @@ module Bungie
       user.bungie_display_name      = user_hash&.dig('cachedBungieGlobalDisplayName')
       user.bungie_display_name_code = user_hash&.dig('cachedBungieGlobalDisplayNameCode')
       user.about                    = user_hash&.dig('about')
-      user.first_accessed_at        = Time.parse(user_hash&.dig('firstAccess'))
-      user.last_updated_at          = Time.parse(user_hash&.dig('lastUpdate'))
+      user.first_accessed_at        = Time.parse(user_hash&.dig('firstAccess')) if user_hash&.dig('firstAccess')
+      user.last_updated_at          = Time.parse(user_hash&.dig('lastUpdate')) if user_hash&.dig('lastUpdate')
 
       user.find_twitch_clips        = true if find_twitch_clips_if_new && user.new_record?
 

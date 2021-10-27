@@ -59,8 +59,8 @@ module Twitch
       video.stream_id     = video_hash&.dig('stream_id').to_i
       video.title         = video_hash&.dig('title')
       video.description   = video_hash&.dig('description')
-      video.started_at    = Time.parse(video_hash&.dig('created_at'))
-      video.published_at  = Time.parse(video_hash&.dig('published_at'))
+      video.started_at    = Time.parse(video_hash&.dig('created_at')) if video_hash&.dig('created_at')
+      video.published_at  = Time.parse(video_hash&.dig('published_at')) if video_hash&.dig('published_at')
       video.url           = video_hash&.dig('url')
       video.thumbnail_url = video_hash&.dig('thumbnail_url')
       video.viewable      = video_hash&.dig('viewable')

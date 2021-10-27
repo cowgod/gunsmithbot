@@ -117,7 +117,7 @@ module Bungie
 
         activity = find_or_initialize_by(instance_id: activity_hash.dig('activityDetails', 'instanceId').to_i)
 
-        activity.started_at             = Time.parse(activity_hash['period'])
+        activity.started_at             = Time.parse(activity_hash['period']) if activity_hash['period']
         activity.mode                   = activity_hash.dig('activityDetails', 'mode').to_i
         activity.modes                  = activity_hash.dig('activityDetails', 'modes').sort.join(',')
         activity.reference_id           = activity_hash.dig('activityDetails', 'referenceId').to_i
