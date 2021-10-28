@@ -578,7 +578,7 @@ HELP
       body_username = $config&.dig('twitch_clips', 'bot_name') || SAINT_BOT_NAME
 
       embed_title       = "#{streamer_name} played #{activity_name} on #{map_name}"
-      embed_description = "Trials Report: https://trials.report/pgcr/#{clip.activity.instance_id}"
+      embed_description = "Match Details: https://destinytracker.com/destiny-2/pgcr/#{clip.activity.instance_id.to_s.uri_encode}\n"
       embed_timestamp   = clip.activity.started_at
 
 
