@@ -1,5 +1,5 @@
 [Unit]
-Description=GunsmithBot - <SERVER_NAME>
+Description=GunsmithBot - Twitch Clip Finder
 After=network-online.target
 
 [Service]
@@ -14,12 +14,9 @@ Environment=GUNSMITH_DB_USERNAME=<XXXXXXXXXXXXXXXXXXXXX>
 Environment=GUNSMITH_DB_PASSWORD=<XXXXXXXXXXXXXXXXXXXXX>
 Environment=GUNSMITH_DB_NAME=<XXXXXXXXXXXXXXXXXXXXX>
 
-### Optional: Override Slack token for different instances
-Environment=SLACK_API_TOKEN=<XXXXXXXXXXXXXXXXXXXXX>
 
-ExecStart=/usr/bin/ruby /usr/local/gunsmithbot/app/slack_runner.rb
-### OR
-### ExecStart=/usr/bin/ruby /usr/local/gunsmithbot/app/discord_runner.rb
+WorkingDirectory=/usr/local/gunsmithbot
+ExecStart=/usr/bin/ruby /usr/local/gunsmithbot/app/find_twitch_clips.rb
 Restart=always
 
 # Configures the time to wait before service is stopped forcefully.

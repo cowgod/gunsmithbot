@@ -1,5 +1,17 @@
+---
+general:
+  banshee_bot_name: Banshee-44
+  banshee_bot_username: banshee-44
+  saint_bot_name: Saint-14
+  saint_bot_username: Saint-14
+api_keys:
+  discord: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  bungie: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  twitch_client_id: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  twitch_client_secret: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 twitch_clips:
-  bot_name: Saint-14
+  find_interval: 120
+  announce_interval: 30
   webhooks:
     discord:
       123456781234567812:
