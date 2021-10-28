@@ -129,9 +129,7 @@ HELP
 
           message_text += "Successfully registered you with Bungie Name `#{bungie_membership.bungie_name}`."
 
-          message_text.strip!
-
-          event.channel&.send_message message_text
+          event.channel&.send_message message_text.strip
 
 
         when 'twitch', 'twitchclips', 'twitch_clips', 'clips'
@@ -282,7 +280,7 @@ HELP
       #     .join(', ')
       # end
 
-      message_text.strip!
+      message_text = message_text.strip
 
 
       attachment_title = results[:item][:name]
@@ -293,7 +291,7 @@ HELP
         &.map { |objective| "\n- _#{objective&.dig(:label)}_: **#{objective&.dig(:value)&.to_formatted_s}**" }
         &.join(', ').to_s
       attachment_text += "\n#{results[:item][:description]}\n"
-      attachment_text.strip!
+      attachment_text = attachment_text.strip
 
 
       attachment_fields = []
@@ -419,7 +417,7 @@ HELP
 
       message_text += "\n#{results&.dig(:slots, :SUBCLASS, :name)}"
 
-      message_text.strip!
+      message_text = message_text.strip
 
 
       attachments = []
@@ -530,9 +528,7 @@ HELP
       output += "Use `@#{BANSHEE_BOT_USERNAME} register <bungie_name>` to register your Bungie.net profile.\n"
       output += "Use the 'help' command for more info."
 
-      output.strip!
-
-      event&.channel&.send_message output
+      event&.channel&.send_message output.strip
     end
 
 
@@ -547,9 +543,7 @@ HELP
       output += "Couldn't find a user for Bungie Name '#{requested_bungie_name}'."
       output += "Use the 'help' command for more info."
 
-      output.strip!
-
-      event&.channel&.send_message output
+      event&.channel&.send_message output.strip
     end
 
 
@@ -566,9 +560,7 @@ HELP
       output += "Usage: `@#{BANSHEE_BOT_USERNAME} <bungie_net> <slot>`\n"
       output += "Please use the 'help' command for more info."
 
-      output.strip!
-
-      event&.channel&.send_message output
+      event&.channel&.send_message output.strip
     end
 
 
@@ -585,21 +577,25 @@ HELP
 
       body_username = $config&.dig('twitch_clips', 'bot_name') || SAINT_BOT_NAME
 
-      embed_title     = "#{streamer_name} played #{activity_name} on #{map_name}"
-      embed_timestamp = clip.activity.started_at
+      embed_title       = "#{streamer_name} played #{activity_name} on #{map_name}"
+      embed_description = "Trials Report: https://trials.report/pgcr/#{clip.activity.instance_id}"
+      embed_timestamp   = clip.activity.started_at
 
 
       discord_users_to_mention = []
       embed_fields             = []
 
+      # If we find at least one player on the winning team, color code the clip as
+      # a victory (at least we know someone will be happy)
+      victory = false
 
-      clip.tracked_players&.map(&:bungie_user)&.each do |bungie_user|
+      clip.tracked_players&.each do |player|
+        bungie_user = player&.bungie_user
+        next unless bungie_user
+
         discord_users_to_mention += bungie_user.discord_users.to_a
 
-
-        # Find the player that corresponds to this bungie_user
-        player = clip.activity&.players&.select { |player| player.bungie_user == bungie_user }&.first
-        next unless player
+        victory                  = true if player.victory?
 
         field_text =
           [
@@ -614,6 +610,9 @@ HELP
                             inline: false
                           })
       end
+
+
+      embed_color = victory ? '#00cc00' : 'cc0000'
 
       body_text = 'New Twitch clip found'
       body_text += " featuring #{discord_users_to_mention.map(&:mention).to_sentence}" if discord_users_to_mention
@@ -631,11 +630,13 @@ HELP
           builder.content    = body_text
 
           builder.add_embed do |embed|
-            embed.timestamp = embed_timestamp
-            embed.title     = embed_title
-            embed.url       = clip_url
-            embed.thumbnail = Discordrb::Webhooks::EmbedImage.new(url: map_thumbnail_url)
-            embed.fields    = embed_fields if embed_fields.size.positive?
+            embed.timestamp   = embed_timestamp
+            embed.title       = embed_title
+            embed.description = embed_description
+            embed.color       = embed_color
+            embed.url         = clip_url
+            embed.thumbnail   = Discordrb::Webhooks::EmbedImage.new(url: map_thumbnail_url)
+            embed.fields      = embed_fields if embed_fields.size.positive?
           end
         end
       rescue RestClient::BadRequest => e

@@ -45,6 +45,11 @@ module Bungie
       def kd(decimal_places: 2)
         (kills.to_f / [deaths, 1].max).round(decimal_places)
       end
+
+
+      def victory?
+        team.standing.to_i == activity&.teams&.map(&:standing)&.map(&:to_i)&.min
+      end
     end
   end
 end

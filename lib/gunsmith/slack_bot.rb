@@ -220,7 +220,7 @@ module Gunsmith
       #     .join(', ')
       # end
 
-      message_text.strip!
+      message_text = message_text.strip
 
       attachment_title = results[:item][:name]
 
@@ -230,7 +230,7 @@ module Gunsmith
         &.map { |objective| "\n- _#{objective&.dig(:label)}_: *#{objective&.dig(:value)&.to_formatted_s}*" }
         &.join(', ').to_s
       attachment_text += "\n#{results[:item][:description]}\n"
-      attachment_text.strip!
+      attachment_text = attachment_text.strip
 
       attachment_fallback = attachment_text.gsub(/\n/, ' - ')
 
@@ -359,8 +359,7 @@ module Gunsmith
       # end
 
       message_text += "\n#{results&.dig(:slots, :SUBCLASS, :name)}"
-
-      message_text.strip!
+      message_text = message_text.strip
 
       attachments = []
 
@@ -448,9 +447,7 @@ module Gunsmith
       output += "Usage: @#{BANSHEE_BOT_USERNAME} <bungie_name> <slot>\n"
       output += "Please use the 'help' command for more info."
 
-      output.strip!
-
-      client.say(text: output, channel: data.channel)
+      client.say(text: output.strip, channel: data.channel)
     end
 
 
@@ -464,9 +461,7 @@ module Gunsmith
       output += "Use `@#{BANSHEE_BOT_USERNAME} register <bungie_name>` to register your Bungie.net profile.\n"
       output += "Use the 'help' command for more info."
 
-      output.strip!
-
-      client.say(text: output, channel: data.channel)
+      client.say(text: output.strip, channel: data.channel)
     end
 
 
@@ -478,9 +473,7 @@ module Gunsmith
       output += "Couldn't find a user for Bungie Name '#{requested_bungie_name}'."
       output += "Use the 'help' command for more info."
 
-      output.strip!
-
-      client.say(text: output, channel: data.channel)
+      client.say(text: output.strip, channel: data.channel)
     end
 
 

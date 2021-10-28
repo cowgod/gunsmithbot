@@ -4,10 +4,6 @@
 require_relative '../environment'
 
 
-##### STILL TO DO:
-# - Implement command to let users set `find_twitch_clips` field true or false
-
-
 Cowgod::Logger.log 'Reporting new clips...'
 
 Bungie::Activities::Clip.pending_announcement.each do |clip|
