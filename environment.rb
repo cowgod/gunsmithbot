@@ -9,7 +9,7 @@ end
 
 
 # A global variable isn't my favorite solution, but it'll work for now
-$config = YAML.safe_load(File.read('./config/config.yml'))
+$config = YAML.safe_load(File.read('config/config.yml'))
 
 
 
