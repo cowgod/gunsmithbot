@@ -12,7 +12,7 @@ module Bungie
 
 
       ACTIVITIES_PER_PAGE = 25
-      MAX_PAGES_PER_CALL  = 4
+      MAX_PAGES_PER_CALL  = 1
 
 
       # def load_activities(mode: nil)
@@ -81,13 +81,14 @@ module Bungie
           # Filter out any activities we've scanned previously
           page_activities.reject! { |activity_id, activity| activity.respond_to?(:scanned_at) && activity&.scanned_at&.present? }
 
-          # If we didn't get a single unscanned activity in this page, consider us done
-          break if page_activities.empty?
-
           # Convert any remaining activity hashes to a Activity object by looking them up in the DB
           page_activities.transform_values! { |activity| activity.is_a?(Hash) ? create_or_update_from_hash(activity) : activity }
 
           activities.merge! page_activities
+
+          # If we ended up with fewer than we asked for, it means we either have found some activities we already
+          # scanned, or we have scanned all activities for the character. Either way, we're done
+          break if page_activities.size < ACTIVITIES_PER_PAGE
         end
 
 

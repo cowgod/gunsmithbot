@@ -13,7 +13,7 @@ module Retryable
 
     begin
       response = yield
-    rescue Net::ReadTimeout, SocketError => e
+    rescue SocketError, Timeout::Error => e
       if retry_attempt < MAX_RETRIES
         retry_attempt += 1
         Cowgod::Logger.log "#{self.class}.#{__method__} - Error '#{e.message}'. Retrying #{retry_attempt}/#{MAX_RETRIES}...'"

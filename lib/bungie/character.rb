@@ -14,9 +14,7 @@ module Bungie
     # end
 
     def load_unscanned_activities(mode: nil)
-      self.activities = Bungie::Activities::Activity.load_unscanned_activities_for_character(self, mode: mode)
-      save
-      activities
+      Bungie::Activities::Activity.load_unscanned_activities_for_character(self, mode: mode)
     end
 
 

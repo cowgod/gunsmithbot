@@ -22,19 +22,16 @@ Bungie::User.where(find_twitch_clips: true)&.each do |bungie_user|
 
             log_msg = "Found clip for user '#{bungie_user.bungie_name}' "
             log_msg += "from Twitch user #{twitch_user.display_name} "
-            # log_msg += "in activity #{Bungie::Manifest.instance.lookup_activity(activity.director_activity_hash)} "
-            # log_msg += "on #{Bungie::Manifest.instance.lookup_activity(clip.activity.reference_id)} "
             log_msg += "on #{activity.started_at}"
-            pp log_msg
+            Cowgod::Logger.log log_msg
 
             Bungie::Activities::Clip.find_or_create_by(activity: activity, twitch_video: video)
           end
-
-
-          # Mark activity as scanned
-          activity.scanned_at = Time.now
-          activity.save
         end
+
+        # Mark activity as scanned
+        activity.scanned_at = Time.now
+        activity.save
       end
     end
   end
