@@ -29,15 +29,6 @@ module Bungie
 
 
       def announce
-        # While we get up and running, only announce clips for the last few weeks
-        unless activity&.started_at && activity.started_at > Time.new(2021, 10, 1)
-          # Mark clip as reported
-          self.announced_at = Time.now
-          save
-          return true
-        end
-
-
         # Build up a map of which destinations we'll be reporting this clip in
         webhook_urls = {
           discord: {},
@@ -84,6 +75,8 @@ module Bungie
         # Mark clip as reported
         self.announced_at = Time.now
         save
+      rescue SocketError, Timeout::Error => e
+        Cowgod::Logger.log "Error while announcing clip #{clip.id}, skipping,... (#{e.message})"
       end
 
     end

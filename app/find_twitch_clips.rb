@@ -15,7 +15,6 @@ loop do
       membership.load_characters&.values&.each do |character|
         character.load_unscanned_activities(mode: Bungie::Api::ACTIVITY_MODES[:all_pvp])&.each_value do |activity|
           # character.load_unscanned_activities(mode: Bungie::Api::ACTIVITY_MODES[:trials_of_osiris])&.each_value do |activity|
-
           activity.players&.with_twitch_account&.each do |player|
             twitch_user = player.bungie_user&.load_twitch_user
             next unless twitch_user
@@ -35,6 +34,8 @@ loop do
           # Mark activity as scanned
           activity.scanned_at = Time.now
           activity.save
+        rescue SocketError, Timeout::Error => e
+          Cowgod::Logger.log "Error while scanning activity #{activity.id}, skipping,... (#{e.message})"
         end
       end
     end

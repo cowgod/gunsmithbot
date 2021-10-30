@@ -8,7 +8,6 @@ module Retryable
 
 
   def with_retry
-    response      = nil
     retry_attempt = 0
 
     begin
@@ -21,6 +20,7 @@ module Retryable
         retry
       else
         Cowgod::Logger.log "#{self.class}.#{__method__} - Error '#{e.message}'. Giving up...'"
+        raise e
       end
     end
 
