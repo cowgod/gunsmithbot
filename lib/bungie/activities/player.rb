@@ -23,6 +23,19 @@ module Bungie
           )
       }
 
+      scope :without_twitch_account, lambda {
+        joins(character: { membership: :bungie_user })
+          .where(
+            characters: {
+              memberships: {
+                bungie_users: {
+                  twitch_display_name: nil
+                }
+              }
+            }
+          )
+      }
+
       scope :find_twitch_clips, lambda {
         joins(character: { membership: :bungie_user })
           .where(

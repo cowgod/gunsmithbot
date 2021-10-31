@@ -168,15 +168,17 @@ module Twitch
 
 
     # Load the Twitch account for a given Twitch display name
-    def get_twitch_videos_for_user_id(user_id)
+    def get_twitch_videos_for_user_id(user_id, game_id: nil)
       # If they didn't give us a user_id to search, there's nothing we can do
       return nil unless user_id
 
       url = '/videos'
 
-      query_options = {
+      query_options           = {
         user_id: user_id
       }
+
+      query_options[:game_id] = game_id if game_id
 
       Cowgod::Logger.log "#{self.class}.#{__method__} - #{url} - #{JSON.pretty_generate(query_options)}"
 

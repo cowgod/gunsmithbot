@@ -19,11 +19,11 @@ module Twitch
     end
 
 
-    def self.load_videos_for_user_id(user_id, twitch_user: nil)
+    def self.load_videos_for_user_id(user_id, twitch_user: nil, game_id: nil)
       raise ArgumentError unless user_id
 
       begin
-        results = Twitch::Api.instance.get_twitch_videos_for_user_id(user_id)
+        results = Twitch::Api.instance.get_twitch_videos_for_user_id(user_id, game_id: game_id)
       rescue QueryError
         return []
       end

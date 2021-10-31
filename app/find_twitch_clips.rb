@@ -16,7 +16,7 @@ loop do
         character.load_unscanned_activities(mode: Bungie::Api::ACTIVITY_MODES[:all_pvp])&.each_value do |activity|
           # character.load_unscanned_activities(mode: Bungie::Api::ACTIVITY_MODES[:trials_of_osiris])&.each_value do |activity|
           activity.players&.with_twitch_account&.each do |player|
-            twitch_user = player.bungie_user&.load_twitch_user
+            twitch_user = player.bungie_user&.load_twitch_user || player.bungie_user&.guess_twitch_user
             next unless twitch_user
 
             twitch_user.load_videos.each do |video|
