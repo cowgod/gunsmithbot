@@ -54,7 +54,7 @@ module Bungie
       user.blizzard_display_name    = user_hash&.dig('blizzardDisplayName')
       user.steam_display_name       = user_hash&.dig('steamDisplayName')
       user.stadia_display_name      = user_hash&.dig('stadiaDisplayName')
-      user.twitch_display_name      = user_hash&.dig('twitchDisplayName')
+      user.twitch_display_name      = user_hash&.dig('twitchDisplayName') if user_hash&.dig('twitchDisplayName')
       user.bungie_display_name      = user_hash&.dig('cachedBungieGlobalDisplayName')
       user.bungie_display_name_code = user_hash&.dig('cachedBungieGlobalDisplayNameCode')
       user.about                    = user_hash&.dig('about')

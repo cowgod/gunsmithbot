@@ -7,13 +7,13 @@ sleep_interval = $config&.dig('twitch_clips', 'announce_interval').presence || 6
 
 
 loop do
-  Cowgod::Logger.log 'Reporting new clips...'
+  Cowgod::Logger.log 'Announcing new clips...'
 
   Bungie::Activities::Clip.pending_announcement.each do |clip|
     clip.announce if clip&.tracked_players
   end
 
-  Cowgod::Logger.log "Done reporting new clips. Sleeping #{sleep_interval} secs..."
+  Cowgod::Logger.log "Done announcing new clips. Sleeping #{sleep_interval} secs..."
 
 
   sleep sleep_interval

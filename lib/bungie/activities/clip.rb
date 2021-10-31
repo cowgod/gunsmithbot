@@ -29,7 +29,7 @@ module Bungie
 
 
       def announce
-        # Build up a map of which destinations we'll be reporting this clip in
+        # Build up a map of which destinations we'll be announcing this clip in
         webhook_urls = {
           discord: {},
           slack:   {}
