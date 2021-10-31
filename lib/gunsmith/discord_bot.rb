@@ -577,9 +577,12 @@ HELP
 
       body_username = $config&.dig('twitch_clips', 'bot_name') || SAINT_BOT_NAME
 
-      embed_title       = "#{streamer_name} played #{activity_name} on #{map_name}"
-      embed_description = "Match Details: https://destinytracker.com/destiny-2/pgcr/#{clip.activity.instance_id.to_s.uri_encode}\n"
-      embed_timestamp   = clip.activity.started_at
+      embed_title = "#{streamer_name} played #{activity_name} on #{map_name}"
+
+      embed_description = "Match Details:\n"
+      embed_description += "https://crucible.report/pgcr/#{clip.activity.instance_id.to_s.uri_encode}"
+
+      embed_timestamp = clip.activity.started_at
 
 
       discord_users_to_mention = []
