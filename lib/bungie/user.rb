@@ -26,11 +26,11 @@ module Bungie
       return twitch_user if twitch_user
 
       [unique_name, display_name, normalized_name, steam_display_name, stadia_display_name, bungie_display_name].each do |field|
-        next unless field
+        next unless field&.match /t\.?tv/i
 
         potential_twitch_names = []
 
-        potential_twitch_name = field.sub(/(#\d+)$/, '').sub(/t\.?tv/i, '')
+        potential_twitch_name = field.sub(/(#\d+)$/, '').sub(%r{[- .:/\\]*t\.?tv[- .:/\\]*}i, '')
 
         potential_twitch_names << potential_twitch_name
         potential_twitch_names << potential_twitch_name.sub(/_+$/, '') if potential_twitch_name.match(/_+$/)
@@ -42,18 +42,20 @@ module Bungie
           twitch_user = Twitch::User.load_by_display_name(potential_twitch_name)
           next unless twitch_user
 
-          # See if this user has ever streamed Destiny 2
-          twitch_videos = Twitch::Video.load_videos_for_user_id(
-            twitch_user.user_id,
-            twitch_user: twitch_user,
-            game_id:     Twitch::Api::DESTINY_2_GAME_CODE
-          )
-          next unless twitch_videos&.size&.positive?
-
-          # This user has streamed Destiny 2 before, so we will guess it's them
+          # See if this user has any saved videos. Ideally, we could check if any of the saved videos were associated
+          # with the Destiny 2 game ID, the Twitch API doesn't provide any information about the game that's contained
+          # in each video. So we'll just check to see if there are any saved VODs at all. If not, then we can't find any
+          # clips anyway, so it's not worth taking the gamble of linking to this guessed twitch account
           # TODO -- we could get more specific, taking the activity ID as an argument, and seeing if they
           # were streaming Destiny 2 at the time the activity took place. But for now we'll see if this is
           # good enough
+          twitch_videos = Twitch::Video.load_videos_for_user_id(
+            twitch_user.user_id,
+            twitch_user: twitch_user
+          )
+          next unless twitch_videos&.size&.positive?
+
+          # We found a Twitch user with this name, and they have saved VODs, so we will guess it's them
           self.twitch_user         = twitch_user
           self.twitch_display_name = twitch_user.display_name
           save
