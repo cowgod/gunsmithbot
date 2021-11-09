@@ -6,6 +6,11 @@ module Bungie
     class Team < ActiveRecord::Base
       belongs_to :activity, class_name: 'Bungie::Activities::Activity', foreign_key: 'bungie_activity_id'
       has_many :players, class_name: 'Bungie::Activities::Player', foreign_key: 'bungie_activity_team_id'
+
+
+      def victory?
+        self == activity&.winning_team
+      end
     end
   end
 end

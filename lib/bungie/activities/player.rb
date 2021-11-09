@@ -61,7 +61,7 @@ module Bungie
 
 
       def victory?
-        team.standing.to_i == activity&.teams&.map(&:standing)&.map(&:to_i)&.min
+        !!team&.victory?
       end
     end
   end

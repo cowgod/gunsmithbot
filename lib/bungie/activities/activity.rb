@@ -56,6 +56,11 @@ module Bungie
       end
 
 
+      def winning_team
+        teams&.order(:standing)&.first
+      end
+
+
       def self.load_unscanned_activities_for_character(character, mode: nil)
         raise ArgumentError unless character
 
@@ -116,7 +121,7 @@ module Bungie
         post_game_carnage_report = Bungie::Api.instance.get_pgcr_for_activity(activity_hash.dig('activityDetails', 'instanceId').to_i)
 
 
-        activity = find_or_initialize_by(instance_id: activity_hash.dig('activityDetails', 'instanceId').to_i)
+        activity                        = find_or_initialize_by(instance_id: activity_hash.dig('activityDetails', 'instanceId').to_i)
 
         activity.started_at             = Time.parse(activity_hash['period']) if activity_hash['period']
         activity.mode                   = activity_hash.dig('activityDetails', 'mode').to_i
