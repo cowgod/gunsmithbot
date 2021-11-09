@@ -580,7 +580,12 @@ HELP
       embed_title = "#{streamer_name} played #{activity_name} on #{map_name}"
 
       embed_description = "Match Details:\n"
-      embed_description += "https://crucible.report/pgcr/#{clip.activity.instance_id.to_s.uri_encode}"
+      embed_description += case clip.activity&.mode
+      when Bungie::Api::ACTIVITY_MODES[:trials_of_osiris]
+        "https://trials.report/pgcr/#{clip.activity.instance_id.to_s.uri_encode}"
+      else
+        "https://crucible.report/pgcr/#{clip.activity.instance_id.to_s.uri_encode}"
+      end
 
       embed_timestamp = clip.activity.started_at
 
