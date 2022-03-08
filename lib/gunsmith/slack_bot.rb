@@ -228,7 +228,7 @@ module Gunsmith
       attachment_text = ''
       attachment_text += "#{results[:item][:type_and_tier]} - *#{results[:item][:power_level]} PL*"
       attachment_text += results[:item]&.dig(:objectives)
-        &.map { |objective| "\n- _#{objective&.dig(:label)}_: *#{objective&.dig(:value)&.to_formatted_s}*" }
+        &.map { |objective| "\n- _#{objective&.dig(:label)}_: *#{objective&.dig(:value)}*" }
         &.join(', ').to_s
       attachment_text += "\n#{results[:item][:description]}\n"
       attachment_text = attachment_text.strip
