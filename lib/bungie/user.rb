@@ -26,7 +26,7 @@ module Bungie
       return twitch_user if twitch_user
 
       [unique_name, display_name, normalized_name, steam_display_name, stadia_display_name, bungie_display_name].each do |field|
-        next unless field&.match /t\.?tv/i
+        next unless field.match /t\.?tv/i
 
         potential_twitch_names = []
 
@@ -35,7 +35,7 @@ module Bungie
         potential_twitch_names << potential_twitch_name
         potential_twitch_names << potential_twitch_name.sub(/_+$/, '') if potential_twitch_name.match(/_+$/)
 
-        next unless potential_twitch_names.size&.positive?
+        next unless potential_twitch_names.size.positive?
 
         potential_twitch_names.each do |potential_twitch_name|
           # See if a user exists with this display name

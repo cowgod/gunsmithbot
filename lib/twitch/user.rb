@@ -3,7 +3,7 @@
 module Twitch
   # Represent a Twitch user
   class User < ActiveRecord::Base
-    has_one :bungie_user, class_name: 'Bungie::User'
+    has_one :bungie_user, class_name: 'Bungie::User', foreign_key: 'twitch_user_id'
     has_many :videos
 
 

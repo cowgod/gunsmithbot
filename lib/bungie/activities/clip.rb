@@ -44,6 +44,11 @@ module Bungie
               next unless $config&.dig('twitch_clips', 'webhooks', 'discord', server.server_id)
 
               $config&.dig('twitch_clips', 'webhooks', 'discord', server.server_id)&.each do |webhook_url|
+                # Don't report clips from users that are registered with the bot. For now, we assume anyone registered
+                # with the bot knows each other. As the bot grows, we'll probably want to expand this and only skip
+                # reporting if the streamer is registered on the specific discord server we're considering here
+                next if tracked_players&.map(&:bungie_user)&.include?(twitch_video&.twitch_user&.bungie_user)
+
                 webhook_urls[:discord][webhook_url] = true
               end
             end
@@ -55,7 +60,7 @@ module Bungie
 
 
         # Send a message to each destination we found
-        webhook_urls[:discord]&.each_key do |webhook_url|
+        webhook_urls[:discord].each_key do |webhook_url|
           Gunsmith::DiscordBot.announce_twitch_clip(
             clip:        self,
             webhook_url: webhook_url
