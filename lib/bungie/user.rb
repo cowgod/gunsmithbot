@@ -26,7 +26,8 @@ module Bungie
       return twitch_user if twitch_user
 
       [unique_name, display_name, normalized_name, steam_display_name, stadia_display_name, bungie_display_name].each do |field|
-        next unless field.match /t\.?tv/i
+        #noinspection RubyRedundantSafeNavigation
+        next unless field&.match /t\.?tv/i
 
         potential_twitch_names = []
 
