@@ -2,12 +2,12 @@
 
 source 'https://rubygems.org'
 
-gem 'activerecord'
+gem 'activerecord', '~> 7.0'
 gem 'async-websocket', '~> 0.8.0'
 gem 'celluloid-io'
-gem 'discordrb'
-gem 'httparty'
-gem 'mysql2'
+gem 'discordrb', '~> 3.4'
+gem 'httparty', '~> 0.21'
+gem 'mysql2', '~> 0.5'
 gem 'otr-activerecord', '~> 2.0'
 
 ### Version 4.0 of Psych eliminated the positional argument interface for safe_load(), but

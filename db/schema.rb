@@ -10,10 +10,9 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2021_10_27_182611) do
-
-  create_table "bungie_activities", charset: "utf8", force: :cascade do |t|
-    t.datetime "started_at", null: false
+ActiveRecord::Schema[7.0].define(version: 2021_10_27_182611) do
+  create_table "bungie_activities", charset: "utf8mb3", force: :cascade do |t|
+    t.datetime "started_at", precision: nil, null: false
     t.integer "duration", null: false
     t.bigint "instance_id", null: false
     t.bigint "reference_id"
@@ -21,24 +20,24 @@ ActiveRecord::Schema.define(version: 2021_10_27_182611) do
     t.integer "mode", null: false
     t.string "modes"
     t.boolean "is_private", default: false, null: false
-    t.datetime "scanned_at"
-    t.datetime "created_at", precision: 6, null: false
-    t.datetime "updated_at", precision: 6, null: false
+    t.datetime "scanned_at", precision: nil
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
     t.index ["instance_id"], name: "index_bungie_activities_on_instance_id", unique: true
   end
 
-  create_table "bungie_activity_clips", charset: "utf8", force: :cascade do |t|
+  create_table "bungie_activity_clips", charset: "utf8mb3", force: :cascade do |t|
     t.bigint "bungie_activity_id", null: false
     t.bigint "twitch_video_id", null: false
-    t.datetime "announced_at"
-    t.datetime "created_at", precision: 6, null: false
-    t.datetime "updated_at", precision: 6, null: false
+    t.datetime "announced_at", precision: nil
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
     t.index ["bungie_activity_id", "twitch_video_id"], name: "idx__bng_act_clips__activity_id__twitch_video_id", unique: true
     t.index ["bungie_activity_id"], name: "index_bungie_activity_clips_on_bungie_activity_id"
     t.index ["twitch_video_id"], name: "index_bungie_activity_clips_on_twitch_video_id"
   end
 
-  create_table "bungie_activity_players", charset: "utf8", force: :cascade do |t|
+  create_table "bungie_activity_players", charset: "utf8mb3", force: :cascade do |t|
     t.bigint "bungie_activity_id", null: false
     t.bigint "bungie_activity_team_id"
     t.bigint "bungie_character_id"
@@ -47,27 +46,27 @@ ActiveRecord::Schema.define(version: 2021_10_27_182611) do
     t.integer "deaths", null: false
     t.integer "standing"
     t.decimal "score", precision: 10
-    t.datetime "created_at", precision: 6, null: false
-    t.datetime "updated_at", precision: 6, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
     t.index ["bungie_activity_id", "bungie_character_id"], name: "idx__bng_act_players__activity_id__character_id", unique: true
     t.index ["bungie_activity_id"], name: "index_bungie_activity_players_on_bungie_activity_id"
     t.index ["bungie_activity_team_id"], name: "index_bungie_activity_players_on_bungie_activity_team_id"
     t.index ["bungie_character_id"], name: "index_bungie_activity_players_on_bungie_character_id"
   end
 
-  create_table "bungie_activity_teams", charset: "utf8", force: :cascade do |t|
+  create_table "bungie_activity_teams", charset: "utf8mb3", force: :cascade do |t|
     t.bigint "bungie_activity_id", null: false
     t.integer "team_id", null: false
     t.string "team_name"
     t.integer "standing"
     t.decimal "score", precision: 10
-    t.datetime "created_at", precision: 6, null: false
-    t.datetime "updated_at", precision: 6, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
     t.index ["bungie_activity_id", "team_id"], name: "idx__bng_act_teams__activity_id__team_id", unique: true
     t.index ["bungie_activity_id"], name: "index_bungie_activity_teams_on_bungie_activity_id"
   end
 
-  create_table "bungie_characters", charset: "utf8", force: :cascade do |t|
+  create_table "bungie_characters", charset: "utf8mb3", force: :cascade do |t|
     t.bigint "bungie_membership_id", null: false
     t.bigint "character_id"
     t.string "race_hash"
@@ -76,24 +75,24 @@ ActiveRecord::Schema.define(version: 2021_10_27_182611) do
     t.string "class_name"
     t.string "gender_hash"
     t.string "gender_name"
-    t.datetime "created_at", precision: 6, null: false
-    t.datetime "updated_at", precision: 6, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
     t.index ["bungie_membership_id"], name: "index_bungie_characters_on_bungie_membership_id"
     t.index ["character_id"], name: "index_bungie_characters_on_character_id", unique: true
   end
 
-  create_table "bungie_memberships", charset: "utf8", force: :cascade do |t|
+  create_table "bungie_memberships", charset: "utf8mb3", force: :cascade do |t|
     t.string "membership_id"
     t.integer "membership_type"
     t.string "display_name"
-    t.datetime "created_at", precision: 6, null: false
-    t.datetime "updated_at", precision: 6, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
     t.bigint "bungie_user_id"
     t.index ["bungie_user_id"], name: "index_bungie_memberships_on_bungie_user_id"
     t.index ["membership_id"], name: "index_bungie_memberships_on_membership_id", unique: true
   end
 
-  create_table "bungie_users", charset: "utf8", force: :cascade do |t|
+  create_table "bungie_users", charset: "utf8mb3", force: :cascade do |t|
     t.bigint "twitch_user_id"
     t.string "membership_id"
     t.string "unique_name"
@@ -104,8 +103,8 @@ ActiveRecord::Schema.define(version: 2021_10_27_182611) do
     t.string "blizzard_display_name"
     t.string "steam_display_name"
     t.string "stadia_display_name"
-    t.datetime "created_at", precision: 6, null: false
-    t.datetime "updated_at", precision: 6, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
     t.string "twitch_display_name"
     t.string "bungie_display_name"
     t.string "bungie_display_name_code"
@@ -117,55 +116,55 @@ ActiveRecord::Schema.define(version: 2021_10_27_182611) do
     t.index ["twitch_user_id"], name: "index_bungie_users_on_twitch_user_id"
   end
 
-  create_table "discord_memberships", charset: "utf8", force: :cascade do |t|
+  create_table "discord_memberships", charset: "utf8mb3", force: :cascade do |t|
     t.bigint "discord_user_id", null: false
     t.bigint "discord_server_id", null: false
     t.boolean "announce_twitch_clips", null: false
-    t.datetime "created_at", precision: 6, null: false
-    t.datetime "updated_at", precision: 6, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
     t.index ["discord_server_id"], name: "index_discord_memberships_on_discord_server_id"
     t.index ["discord_user_id", "discord_server_id"], name: "idx__disc_memberships__user_id__server_id", unique: true
     t.index ["discord_user_id"], name: "index_discord_memberships_on_discord_user_id"
   end
 
-  create_table "discord_servers", charset: "utf8", force: :cascade do |t|
+  create_table "discord_servers", charset: "utf8mb3", force: :cascade do |t|
     t.bigint "server_id", null: false
     t.string "name", null: false
-    t.datetime "created_at", precision: 6, null: false
-    t.datetime "updated_at", precision: 6, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
-  create_table "discord_users", charset: "utf8", force: :cascade do |t|
+  create_table "discord_users", charset: "utf8mb3", force: :cascade do |t|
     t.string "user_id"
     t.bigint "bungie_user_id"
     t.string "username"
-    t.datetime "created_at", precision: 6, null: false
-    t.datetime "updated_at", precision: 6, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
     t.index ["bungie_user_id"], name: "fk_discord_bungie_user"
     t.index ["user_id"], name: "index_discord_users_on_user_id", unique: true
   end
 
-  create_table "slack_teams", charset: "utf8", force: :cascade do |t|
+  create_table "slack_teams", charset: "utf8mb3", force: :cascade do |t|
     t.string "team_id"
     t.string "name"
     t.string "domain"
-    t.datetime "created_at", precision: 6, null: false
-    t.datetime "updated_at", precision: 6, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
     t.index ["team_id"], name: "index_slack_teams_on_team_id", unique: true
   end
 
-  create_table "slack_users", charset: "utf8", force: :cascade do |t|
+  create_table "slack_users", charset: "utf8mb3", force: :cascade do |t|
     t.bigint "team_id", null: false
     t.string "user_id"
     t.bigint "bungie_user_id"
-    t.datetime "created_at", precision: 6, null: false
-    t.datetime "updated_at", precision: 6, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
     t.index ["bungie_user_id"], name: "fk_slack_bungie_user"
     t.index ["team_id", "user_id"], name: "index_slack_users_on_team_id_and_user_id", unique: true
     t.index ["team_id"], name: "index_slack_users_on_team_id"
   end
 
-  create_table "twitch_users", charset: "utf8", force: :cascade do |t|
+  create_table "twitch_users", charset: "utf8mb3", force: :cascade do |t|
     t.bigint "user_id"
     t.string "login_name"
     t.string "display_name"
@@ -174,20 +173,20 @@ ActiveRecord::Schema.define(version: 2021_10_27_182611) do
     t.string "profile_image_url"
     t.string "offline_image_url"
     t.integer "view_count"
-    t.datetime "channel_created_at"
-    t.datetime "created_at", precision: 6, null: false
-    t.datetime "updated_at", precision: 6, null: false
+    t.datetime "channel_created_at", precision: nil
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
     t.index ["user_id"], name: "index_twitch_users_on_user_id", unique: true
   end
 
-  create_table "twitch_videos", charset: "utf8", force: :cascade do |t|
+  create_table "twitch_videos", charset: "utf8mb3", force: :cascade do |t|
     t.bigint "twitch_user_id"
     t.bigint "video_id"
     t.bigint "stream_id"
     t.string "title"
     t.text "description"
-    t.datetime "started_at"
-    t.datetime "published_at"
+    t.datetime "started_at", precision: nil
+    t.datetime "published_at", precision: nil
     t.string "url"
     t.string "thumbnail_url"
     t.string "viewable"

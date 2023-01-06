@@ -48,12 +48,12 @@ class ChangeUserAssociation < ActiveRecord::Migration[6.1]
 
     # Get rid of the unused bungie_membership_id column
     change_table :slack_users do |t|
-      t.remove :bungie_membership_id
+	    t.remove_references :bungie_membership
     end
 
     # Get rid of the unused bungie_membership_id column
     change_table :discord_users do |t|
-      t.remove :bungie_membership_id
+	    t.remove_references :bungie_membership
     end
 
   end
