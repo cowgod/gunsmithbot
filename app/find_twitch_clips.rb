@@ -12,14 +12,7 @@ loop do
 		### TODO -- move this logic into Bungie::User
 		bungie_user&.memberships&.each do |membership|
 			membership.load_characters&.values&.each do |character|
-				### Temporary workaround for Bungie API bug #1761
-				### https://github.com/Bungie-net/api/issues/1761
-				# character.load_unscanned_activities(mode: Bungie::Api::ACTIVITY_MODES[:all_pvp])&.each_value do |activity|
-
-				activities = character.load_unscanned_activities(mode: Bungie::Api::ACTIVITY_MODES[:all_pvp])
-				activities&.merge! character.load_unscanned_activities(mode: Bungie::Api::ACTIVITY_MODES[:iron_banner_zone_control])
-				activities&.each_value do |activity|
-
+				character.load_unscanned_activities(mode: Bungie::Api::ACTIVITY_MODES[:all_pvp])&.each_value do |activity|
 					activity.players&.with_twitch_account&.each do |player|
 						twitch_user = player.bungie_user&.load_twitch_user || player.bungie_user&.guess_twitch_user
 						next unless twitch_user
