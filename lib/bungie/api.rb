@@ -959,11 +959,11 @@ module Bungie
 			return ITEM_BUCKET_IDS[bucket] if ITEM_BUCKET_IDS.key?(bucket)
 
 			case bucket.to_s.strip.downcase
-				when 'primary', 'kinetic'
+				when 'primary', 'kinetic', 'stasis', 'strand'
 					ITEM_BUCKET_IDS[:KINETIC_WEAPON]
 				when 'special', 'secondary', 'energy'
 					ITEM_BUCKET_IDS[:ENERGY_WEAPON]
-				when 'heavy', 'power'
+				when 'heavy', 'power', 'purple'
 					ITEM_BUCKET_IDS[:HEAVY_WEAPON]
 				when 'ghost'
 					ITEM_BUCKET_IDS[:GHOST]
